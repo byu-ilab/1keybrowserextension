@@ -7,7 +7,7 @@ Once you upload it, the extension will give you the error
 "WebSocket connection to 'ws://localhost:9090/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
 but this is fine. Everything will work normally.
 
-** For Version 0.2 you can use the directions for testing on your browser of choice below. **
+**For Version 0.2 you can use the directions for testing on your browser of choice below.**
 
 ## Instructions to install Let's Authenticate Extension (Development version)
 
