@@ -139,7 +139,7 @@
       /***/ function(module, __webpack_exports__, __webpack_require__) {
         "use strict";
         eval(
-          "__webpack_require__.r(__webpack_exports__);\n//\n//\n//\n//\n//\n//\n/* harmony default export */ __webpack_exports__[\"default\"] = ({\n  name: 'App'\n});\n\n//# sourceURL=webpack:///./options/App.vue?../node_modules/babel-loader/lib!../node_modules/vue-loader/lib??vue-loader-options"
+          '__webpack_require__.r(__webpack_exports__);\n//\n//\n//\n//\n//\n//\n/* harmony default export */ __webpack_exports__["default"] = ({\n  name: "App"\n});\n\n//# sourceURL=webpack:///./options/App.vue?../node_modules/babel-loader/lib!../node_modules/vue-loader/lib??vue-loader-options'
         );
 
         /***/

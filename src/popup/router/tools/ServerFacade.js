@@ -10,7 +10,7 @@ import {
   setAuthenticationDataEtag
 } from "./LocalStorage.js";
 
-var hostName = "https://letsauth.org";
+var hostName = "http://localhost:3060";
 // var hostName = "http://localhost:3000"; //Use this if you are running the CA locally
 
 /**
