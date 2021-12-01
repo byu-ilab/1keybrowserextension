@@ -179,6 +179,8 @@ export default {
         var response = await sendLoginToCA(userName, userPassword, authCert);
       }
 
+      console.log("register response");
+      console.log(response);
       //a successful CA registration allows login
       if (response != null) {
         //get certificate from CA, save it. This is your authenticator cert for the future!
