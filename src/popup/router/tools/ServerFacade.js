@@ -19,8 +19,6 @@ var hostName = "https://letsauth.org";
  * The CA uses that header to check if the authenticator data has changed since the last time this authenticator fetched it.
  * If no change has occurred, there is no need to update and CA doesn't return authenticator data.
  *
- * TODO: currently this endpoint returns 403 error response. Work with Chris to find out why.
- *
  * @param authenticatorCertificate PEM string of authenticator certficate
  * @param username string of username for this 1Key account
  *
@@ -176,19 +174,18 @@ export async function renewAccountCertWithCA(
 }
 
 /**
+ * DEPRECATED: this is from version0.2 and is kept just in case we transition away from FIDO back to passwords
  * Completes registering a 1Key account with the CA.
  *
  * @param usr string of desired username for the new 1Key account
- * @param pwd plain text string of desired master password for the new 1Key account
  * @param authCSR certificate signing request for an authenticator certificate that contains the public key from this authenticator's keypair
  *
  * @returns response if successful or null if error occurs
  */
-export async function sendRegisterToCA(usr, pwd, authCSR) {
+export async function sendRegisterToCA(usr, authCSR) {
   try {
     let response = await axios.post(hostName + "/la0.2/password/register", {
       username: usr,
-      password: pwd,
       CSR: authCSR
     });
     return response;
@@ -206,6 +203,7 @@ export async function sendRegisterToCA(usr, pwd, authCSR) {
 }
 
 /**
+ * DEPRECATED: this is from version0.2 and is kept just in case we transition away from FIDO back to passwords
  * Completes login to users's 1Key account.
  *
  * @param usr string of inputted username
@@ -218,7 +216,6 @@ export async function sendLoginToCA(usr, pwd, authCSR) {
   try {
     let response = await axios.post(hostName + "/la0.2/password/login", {
       username: usr,
-      password: pwd,
       CSR: authCSR
     });
     return response;
@@ -229,7 +226,35 @@ export async function sendLoginToCA(usr, pwd, authCSR) {
     } else {
       console.log(error.response.data);
       //possible errors: 403 (unable to sign csr) or 500 (internal server error)
-      // TODO: maybe differentiate error message based on error type...
+    }
+    return null;
+  }
+}
+
+/**
+ * sends the CSR and returns a valid authenticator certificate
+ *
+ * @param usr string of inputted username
+ * @param authCSR certificate signing request for an authenticator certificate that contains the public key from this authenticator's keypair
+ *
+ * @returns response if successful or null if error occurs
+ */
+export async function sendAuthCSRToCA(usr, authCSR) {
+  try {
+    let response = await axios.post(
+      hostName + "/la0.3/users/" + usr + "/sign",
+      {
+        CSR: authCSR
+      }
+    );
+    return response;
+  } catch (error) {
+    console.log(error.response);
+    if (!error.response) {
+      alert("1Key Server is not responding. Please try again later.");
+    } else {
+      console.log(error.response.data);
+      //possible errors: 403 (unable to sign csr) or 500 (internal server error)
     }
     return null;
   }

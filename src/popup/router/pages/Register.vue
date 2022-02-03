@@ -7,9 +7,14 @@
       Register
     </div>
 
+    <div v-if="!newAuthLogin && !alreadyRegistered" class="yubikey-prompt">
+      Have your YubiKey ready for registration. This might take a little bit.
+    </div>
+
     <div class="registeredMessage" v-show="newAuthLogin && !alreadyRegistered">
       To register this browser, enter your 1Key account information and a new
-      name for this browser. Have your YubiKey ready for registration.
+      name for this browser. Have your YubiKey ready for registration. This
+      might take a little bit.
     </div>
 
     <form id="registerForm" v-if="!alreadyRegistered">
@@ -23,17 +28,6 @@
           Choose a name to identify this browser.
         </div>
         <input type="text" id="name" name="name" /><br />
-      </div>
-      <div class="field">
-        <label for="pwd">Password:</label><br v-if="newAuthLogin" />
-        <div class="passwordSpecs" v-if="!newAuthLogin">
-          Must be a minimum of 8 characters.
-        </div>
-        <input type="password" id="pwd" name="pwd" />
-      </div>
-      <div class="field" v-if="!newAuthLogin">
-        <label for="pwd2">Confirm password:</label><br />
-        <input type="password" id="pwd2" name="pwd2" />
       </div>
 
       <div class="fail" id="failMessage" v-show="registerFail">
@@ -77,9 +71,15 @@ import {
   updateAllCertsList,
   makeKeypassFromPassword,
   createAuthenticatorData,
-  addAuthToAuthenticatorData
+  addAuthToAuthenticatorData,
+  generateUniqueIdentifier,
+  delay
 } from "../tools/CertGen.js";
-import { sendRegisterToCA, sendLoginToCA } from "../tools/ServerFacade.js";
+import {
+  sendRegisterToCA,
+  sendLoginToCA,
+  sendAuthCSRToCA
+} from "../tools/ServerFacade.js";
 import {
   setIndexeddbKey,
   getIndexeddbKey,
@@ -87,17 +87,14 @@ import {
   clearSecretLocalStorage
 } from "../tools/LocalStorage.js";
 import { storeAuthCert } from "../tools/CertDatabase.js";
-import fido from "../tools/fido.js";
 export default {
   name: "Register",
-  mixins: [fido],
   data() {
     return {
       registerFail: false,
       alreadyRegistered: false,
       newAuthLogin: false,
-      loading: false,
-      recoveryPasskeys: []
+      loading: false
     };
   },
   components: {
@@ -136,19 +133,15 @@ export default {
     }
   },
   methods: {
-    /**
-     * Performs bulk of work to register a user
-     * TODO: this prepares recovery passkeys that won't be used for version0.2. Edit this to work with version0.2 recovery.
-     */
     async registerLetsAuthUser() {
       this.loading = true;
       document.getElementById("registerButton").className = "disabledButton";
 
       //get user input from registration form
       let userName = document.getElementById("username").value;
-      let userPassword = document.getElementById("pwd").value;
       let authName = document.getElementById("name").value;
       this.registerFail = false;
+      let userPassword = generateUniqueIdentifier();
 
       //get recovery passkeys, generate key that will be used to lock indexeddb
       let keypass = makeKeypassFromPassword(userPassword);
@@ -162,58 +155,77 @@ export default {
         indexeddbKey
       );
 
-      //authenticator certificate generated for the CA register api call
       let forge = require("node-forge");
+      let publicKeyPem = forge.pki.publicKeyFromPem(userInfo.publicKey);
+
+      //authenticator certificate generated for the CA register api call
       let authCert = makeCSR(
         forge.pki.privateKeyFromPem(userInfo.privateKey),
-        forge.pki.publicKeyFromPem(userInfo.publicKey),
+        publicKeyPem,
         authName,
         "deprecated@email.com" // id@ca.org??
       );
 
       //basically the only difference between first time registration
       //and new authenticator registration is api sent to CA
+      let type = "";
       if (!this.newAuthLogin) {
-        var response = await sendRegisterToCA(userName, userPassword, authCert);
+        type = "register";
       } else {
-        var response = await sendLoginToCA(userName, userPassword, authCert);
+        type = "login";
+        // var messageResponse = await sendLoginToCA(userName, userPassword, authCert);
       }
 
-      //a successful CA registration allows login
-      if (response != null) {
-        //get certificate from CA, save it. This is your authenticator cert for the future!
-        await storeAuthCert(
-          authName,
-          response.data.authenticatorCertificate,
-          "1",
-          indexeddbKey
-        );
+      chrome.windows.create(
+        {
+          url:
+            "https://letsauth.org/" +
+            type +
+            "/" +
+            userName +
+            "?kauth=" +
+            publicKeyPem,
+          type: "popup"
+        },
+        async function(win) {
+          //sleep every 5 seconds before trying to get a signed auth cert from the CA
+          let response = "";
+          while (!response) {
+            await delay(5000);
+            response = await sendAuthCSRToCA(userName, authCert);
+          }
 
-        //loggedIn variable set to true
-        chrome.storage.local.set({ loggedIn: true });
-        setLoggedInCredentials(makeKeypassFromPassword(userPassword));
+          if (response != null) {
+            //get certificate from CA, save it. This is your authenticator cert for the future!
+            await storeAuthCert(
+              authName,
+              response.data.authenticatorCertificate,
+              "1",
+              indexeddbKey
+            );
 
-        //create or update authenticator data with this device
-        if (!this.newAuthLogin) {
-          await createAuthenticatorData(
-            authName,
-            response.data.authenticatorCertificate
-          );
-        } else {
-          await addAuthToAuthenticatorData(
-            authName,
-            response.data.authenticatorCertificate
-          );
+            //loggedIn variable set to true
+            chrome.storage.local.set({ loggedIn: true });
+            setLoggedInCredentials(makeKeypassFromPassword(userPassword));
+
+            //create or update authenticator data with this device
+            if (!this.newAuthLogin) {
+              await createAuthenticatorData(authName, response.authCert);
+            } else {
+              await addAuthToAuthenticatorData(authName, response.authCert);
+            }
+
+            await updateAllCertsList(indexeddbKey);
+
+            this.$router.push("/");
+          } else {
+            await this.failRegister();
+          }
+
+          this.loading = false;
+          win.close();
         }
-
-        await updateAllCertsList(indexeddbKey);
-
-        this.$router.push("/");
-      } else {
-        await this.failRegister();
-      }
-
-      this.loading = false;
+      );
     },
     /**
      * Generates the public/private keypair for this authenticator
@@ -257,21 +269,12 @@ export default {
     addFormEventListeners() {
       let callback = this.newAuthLogin ? checkFormNewAuth : checkForm;
       document.getElementById("username").addEventListener("input", callback);
-      document.getElementById("pwd").addEventListener("input", callback);
-      if (document.getElementById("pwd2")) {
-        document.getElementById("pwd2").addEventListener("input", callback);
-      }
       document.getElementById("name").addEventListener("input", callback);
 
       function checkForm() {
         if (
           document.getElementById("username").value &&
-          document.getElementById("pwd").value &&
-          document.getElementById("pwd2").value &&
-          document.getElementById("name").value &&
-          document.getElementById("pwd").value.length >= 8 &&
-          document.getElementById("pwd").value ===
-            document.getElementById("pwd2").value
+          document.getElementById("name").value
         ) {
           document.getElementById("registerButton").className =
             "registerButton";
@@ -284,7 +287,6 @@ export default {
       function checkFormNewAuth() {
         if (
           document.getElementById("username").value &&
-          document.getElementById("pwd").value &&
           document.getElementById("name").value
         ) {
           document.getElementById("registerButton").className =
@@ -413,6 +415,16 @@ form .fail {
   font-size: 12px;
   color: var(--logo-gray);
   padding: 2px;
+}
+
+.yubikey-prompt {
+  font-size: 16px;
+  color: var(--logo-gray);
+  padding: 2px;
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  text-align: center;
 }
 
 .registeredMessage {

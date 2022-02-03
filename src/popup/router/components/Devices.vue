@@ -1,8 +1,9 @@
 <template>
   <div id="body" class="devices">
     <h2>Devices</h2>
+    <LoadingIcon v-if="loadingPage" />
 
-    <div id="box" class="scrollBox">
+    <div id="box" class="scrollBox" v-else>
       <div v-if="deviceListEmpty">
         <h3>None of your devices have active sessions!</h3>
       </div>
@@ -78,7 +79,8 @@ export default {
   data() {
     return {
       deviceList: null,
-      loading: false
+      loading: false,
+      loadingPage: false
     };
   },
   components: {
@@ -87,6 +89,7 @@ export default {
   async created() {
     //make sure local database is up-to-date
     this.loading = true;
+    this.loadingPage = true;
     await updateAllCertsList();
 
     let deviceList = await getLoggedInDevices();
@@ -101,6 +104,7 @@ export default {
         results[x].style.color = "var(--scroll-box)";
       }
     }
+    this.loadingPage = false;
     this.loading = false;
   },
   async mounted() {

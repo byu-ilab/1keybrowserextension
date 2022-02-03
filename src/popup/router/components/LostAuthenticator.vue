@@ -77,8 +77,9 @@
 <script>
 /**
  * LostAuthenticator.vue
- * Displays all authenticators for user's 1Key account and buttons to deauthorize/authorize them.
- * NOT COMPLETED for version0.2 since details of authenticator revocation are not yet written.
+ * Displays all authenticators for user's 1Key account and buttons to deauthorize them.
+ * Lot's of leftover code here from version0.1 to reauthorize devices. Version0.2 has
+ * a user register the device as a new authenticator in the event they want to reauthorize the authenticator.
  */
 
 import {

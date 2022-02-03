@@ -38,5 +38,6 @@
     "http://*/",
     "https://*/",
     "geolocation"
-  ]
+  ],
+  "web_accessible_resources": ["content.js"]
 }

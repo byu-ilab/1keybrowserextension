@@ -960,6 +960,11 @@ export async function renewAccountCert(
   return certResponse.data.accountCertificate;
 }
 
+/**
+ * compiles a list of active sessions for each devices registered with the CA.
+ *
+ * @returns a map of device names and active sessions for that device
+ */
 export async function getLoggedInDevices() {
   let allAccounts = await getAllServiceAccounts();
   console.log(allAccounts);
@@ -1009,6 +1014,15 @@ export async function getLoggedInDevices() {
   return deviceList;
 }
 
+/**
+ * Removes a session from the authentication data when the user remotely logs out of that account.
+ *
+ * @param accountID the unique identifier for that account
+ * @param authName the name of the authenticator that is logged in to the account
+ * @param session the session to be logged out of
+ *
+ * @returns the updated authentication data
+ */
 export async function removeSessionFromAuthData(accountID, authName, session) {
   let authDataObj = await getDecryptedAuthenticatorData();
 
@@ -1034,6 +1048,13 @@ export async function removeSessionFromAuthData(accountID, authName, session) {
   );
 }
 
+/**
+ * Removes all sessions for a specific authenticator. Used when deauthorizing a device, I just wait to update the auth data until I'm finished logging out of each session.
+ *
+ * @param authName the name of the authenticator that is being logged out of.
+ *
+ * @returns updated authentication data
+ */
 export async function removeDeviceSessionsFromAuthData(authName) {
   let authDataObj = await getDecryptedAuthenticatorData();
 
@@ -1051,3 +1072,11 @@ export async function removeDeviceSessionsFromAuthData(authName) {
     authDataObj.lockID
   );
 }
+
+/**
+ * serves as a sleep function, used when waiting to check if kauth was registered and the CSR was signed by the CA
+ *
+ * @param ms milliseconds the program is supposed to sleep for (ex: 5000 = 5 seconds)
+ *
+ */
+export const delay = ms => new Promise(res => setTimeout(res, ms));

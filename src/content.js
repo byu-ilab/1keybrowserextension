@@ -4,6 +4,7 @@
  */
 
 import { getSignInSetting } from "./popup/router/tools/LocalStorage.js";
+import { fido_register, fido_login } from "./popup/router/tools/fido.js";
 
 /**
  * This callback is given to the page Mutation Observer.
@@ -59,6 +60,33 @@ var scanForAuthDetails = async function() {
 
 // Create an observer instance linked to the callback function
 var observer = new MutationObserver(scanForAuthDetails);
+
+// listens for requests from the extension to use fido authentication
+chrome.runtime.onMessage.addListener(async function(
+  request,
+  sender,
+  sendResponse
+) {
+  console.log("entered listener");
+  if (request.type == "register" && request.username && request.authCert) {
+    console.log("username sent: " + request.username);
+    console.log("auth cert: " + request.authCert);
+    try {
+      let response = await fido_register(request.username, request.authCert);
+      console.log("register response");
+      console.log(response);
+      let authCert = response.data.authenticatorCertificate;
+      sendResponse({ status: 200, authCert: authCert });
+    } catch (error) {
+      console.log(error);
+      sendResponse({ status: 500 });
+    }
+  } else if (request.type == "login" && request.username && request.authCert) {
+    console.log("in login");
+  } else if (request.type == "revoke" && request.username && request.authCert) {
+    console.log("in revoke");
+  }
+});
 
 // Start observing the target node (the body of the website) for configured mutations
 var targetNode = document.body;
