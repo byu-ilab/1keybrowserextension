@@ -28,6 +28,7 @@
     "cors": "^2.8.5",
     "dexie-encrypted": "^2.0.0",
     "ec-key": "0.0.4",
+    "get-random-values": "^1.2.2",
     "gulp-sass": "^4.1.0",
     "jspdf": "^1.5.3",
     "nan": "^2.14.1",

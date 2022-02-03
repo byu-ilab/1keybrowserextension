@@ -73,7 +73,8 @@ import {
   createAuthenticatorData,
   addAuthToAuthenticatorData,
   generateUniqueIdentifier,
-  delay
+  delay,
+  getSymmetricKeyString
 } from "../tools/CertGen.js";
 import {
   sendRegisterToCA,
@@ -141,16 +142,16 @@ export default {
       let userName = document.getElementById("username").value;
       let authName = document.getElementById("name").value;
       this.registerFail = false;
-      let userPassword = generateUniqueIdentifier();
+      let symmetricKeyString = getSymmetricKeyString();
 
       //get recovery passkeys, generate key that will be used to lock indexeddb
-      let keypass = makeKeypassFromPassword(userPassword);
+      let keypass = makeKeypassFromPassword(symmetricKeyString);
       let indexeddbKey = getIndexeddbKey(keypass);
 
       //keys are created, keys and user information is stored in user database
       var userInfo = await this.generateAndStoreKeys(
         userName,
-        userPassword,
+        symmetricKeyString,
         authName,
         indexeddbKey
       );
@@ -206,7 +207,7 @@ export default {
 
             //loggedIn variable set to true
             chrome.storage.local.set({ loggedIn: true });
-            setLoggedInCredentials(makeKeypassFromPassword(userPassword));
+            setLoggedInCredentials(makeKeypassFromPassword(symmetricKeyString));
 
             //create or update authenticator data with this device
             if (!this.newAuthLogin) {

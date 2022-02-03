@@ -1080,3 +1080,29 @@ export async function removeDeviceSessionsFromAuthData(authName) {
  *
  */
 export const delay = ms => new Promise(res => setTimeout(res, ms));
+
+/**
+ * Generates the random string that will be used to make a symmetric key to encrypt the authentication data.
+ * Change the keyLength variable to change the length of the key string.
+ * Uses get-random-values package. Docs: https://www.npmjs.com/package/get-random-values
+ *
+ */
+export function getSymmetricKeyString() {
+  var getRandomValues = require("get-random-values");
+  let keyLength = 16;
+  let dictionary =
+    "ABCDEFGHIJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxstuvwxyz123456789";
+  var array = new Uint8Array(keyLength);
+  getRandomValues(array);
+  let key = "";
+  for (let i = 0; i < keyLength; i++) {
+    if (i != 0 && i % 4 == 0) {
+      key += "-";
+    }
+    let index = array[i] % dictionary.length;
+    key += dictionary[index];
+  }
+
+  console.log("key: " + key);
+  return key;
+}
