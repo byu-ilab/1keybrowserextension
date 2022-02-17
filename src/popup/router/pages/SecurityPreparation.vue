@@ -5,15 +5,15 @@
     </div>
 
     <div class="instructions" style="width: 300px">
-      A list of recovery passkeys have been created for this device. To recover
-      your 1Key account using this device, you must use one of these passkeys.
-      Each passkey may only be used once.
+      This is your recovery kit. Whenever you register a new device with your
+      1Key account or log out of this one, you will need to present the key in
+      this kit.
     </div>
 
     <div class="stepRow">
       <div class="numberBullet">1</div>
       <div class="instructions">
-        Download the pdf file of your passkeys
+        Download the pdf file of your key
         <div class="downloadLink" id="link" @click="downloadPdf">here.</div>
       </div>
     </div>
@@ -44,7 +44,7 @@
 
     <div class="pdf" id="pdfToDownload" v-show="false">
       <div class="pdfTitle" style="font-size: 26px">
-        <strong>1Key Account Recovery Passkeys</strong>
+        <strong>1Key Account Recovery Key</strong>
         <br />
       </div>
       <div class="pdfTitle">
@@ -54,17 +54,10 @@
       <div class="pdfInstruct">
         <strong>Instructions: </strong>
         Store this file in a secure location, NOT on the device it was created
-        for. If you ever need to recover your 1Key Account using this device
-        (for example if you forget your password) then you must use one of the
-        following 10 recovery passkeys. These passkeys will not work on any
-        other device. Each passkey may only be used once and then it is
-        permanently suspended.
+        for. Whenever you register a new device with your 1Key account or log
+        out of this one, you will need to present the key in this kit.
       </div>
-      <ol>
-        <li v-for="key in passkeys" :key="key">
-          {{ key }}
-        </li>
-      </ol>
+      <p class="key">{{ key }}</p>
     </div>
   </div>
 </template>
@@ -72,7 +65,8 @@
 <script>
 /**
  * SecurityPreparation.vue
- * NOT USED IN VERSION 2.0! Code is just left in case it is useful in the future.
+ * Initially used to store 10 passkeys used for recovery when the user forgot their master password, it is now
+ * used to store the symmetric key used to decrypt the authentication data key and the certificates in local storage.
  */
 
 import jsPDF from "jspdf";
@@ -82,7 +76,7 @@ export default {
   data() {
     return {
       downloaded: false,
-      passkeys: [],
+      key: "",
       pdfUsername: "",
       pdfDevicename: ""
     };
@@ -95,10 +89,8 @@ export default {
         instructions[x].style.color = "white";
       }
 
-      let bullets = await document.getElementsByClassName("numberBullet");
-      for (let x = 0; x < bullets.length; x++) {
-        bullets[x].style.color = "white";
-      }
+      let key = await document.getElementsByClassName("key");
+      key.style.color = "white";
 
       document.getElementById("link").style.color = "var(--logo-gray)";
     }
@@ -118,7 +110,7 @@ export default {
       //save pertinent information and instructions
       this.pdfUsername = userInfo.username;
       this.pdfDevicename = userInfo.devicename;
-      this.passkeys = this.$route.params.passkeys;
+      this.key = this.$route.params.key;
     },
     /**
      * Creates pdf file and downloads it.
@@ -141,7 +133,7 @@ export default {
         }
       );
 
-      officialPdf.save("1Key_Account_Recovery.pdf");
+      officialPdf.save("1Key_Account_Key.pdf");
 
       this.downloaded = true;
     }

@@ -5,7 +5,7 @@
  * The user database is used to store important and sensitive information for this user and this authenticator.
  */
 
-import { makeKeypassFromPassword } from "./CertGen.js";
+import { makeKeypass } from "./CertGen.js";
 import { getLoggedInCredentials, getIndexeddbKey } from "./LocalStorage.js";
 import Dexie from "dexie";
 import { applyEncryptionMiddleware, cryptoOptions } from "dexie-encrypted";
@@ -16,7 +16,7 @@ import { applyEncryptionMiddleware, cryptoOptions } from "dexie-encrypted";
  * @param pemPrivateKey PEM string of this authenticator's private key
  * @param pemPublicKey PEM string of this authenticator's public key
  * @param username string of username for user's 1Key account
- * @param password string of symmetric key derived from the master password
+ * @param symmetricKey string of symmetric key derived from generated/user entered string
  * @param authname string of name given to this authenticator
  * @param idbKey key used to encrypt the user database
  */
@@ -24,7 +24,7 @@ export async function storeNewUserInfo(
   pemPrivateKey,
   pemPublicKey,
   username,
-  password,
+  symmetricKey,
   authname,
   idbKey
 ) {
@@ -48,7 +48,7 @@ export async function storeNewUserInfo(
     privateKey: pemPrivateKey,
     publicKey: pemPublicKey,
     username: username,
-    password: password,
+    symmetricKey: symmetricKey,
     authname: authname
   };
 
@@ -115,7 +115,7 @@ export async function changePasswordInUserDb(newPassword, userInfo) {
   //this must be called AFTER idbkey has been re-encrypted with new password
 
   //generates new keypass
-  let keypass = makeKeypassFromPassword(newPassword);
+  let keypass = makeKeypass(newPassword);
 
   //rewrites user entry with said keypass added to top of password list
   await storeNewUserInfo(

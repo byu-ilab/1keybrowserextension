@@ -18,8 +18,13 @@
         /><br />
       </div>
       <div class="field">
-        <label for="pwd">Password:</label><br />
-        <input type="password" id="pwd" name="pwd" @keyup.enter="clickLogin" />
+        <label for="key">Key:</label><br />
+        <div class="keySpecs">
+          Enter the key that was given to you when <br />you first created your
+          1Key account.<br />
+          You should have printed this out or saved <br />it on another device.
+        </div>
+        <input type="text" id="key" name="key" /><br />
       </div>
     </form>
 
@@ -54,13 +59,9 @@
  */
 
 import LoadingIcon from "../components/LoadingIcon.vue";
-import { sendLoginToCA } from "../tools/ServerFacade.js";
+import { sendAuthCSRToCA } from "../tools/ServerFacade.js";
 import { storeAuthCert } from "../tools/CertDatabase.js";
-import {
-  makeCSR,
-  updateAllCertsList,
-  makeKeypassFromPassword
-} from "../tools/CertGen.js";
+import { makeCSR, updateAllCertsList, makeKeypass } from "../tools/CertGen.js";
 import {
   getUserInfo,
   changePasswordInUserDb,
@@ -101,6 +102,30 @@ export default {
 
     var input = document.getElementById("username");
     input.focus();
+
+    document
+      .getElementById("username")
+      .addEventListener("keyup", function(event) {
+        event.preventDefault();
+        console.log(document.getElementById("loginButton"));
+        if (
+          event.keyCode === 13 &&
+          document.getElementById("loginButton").className == "loginButton"
+        ) {
+          document.getElementById("loginButton").click();
+        }
+      });
+
+    document.getElementById("key").addEventListener("keyup", function(event) {
+      event.preventDefault();
+      console.log(document.getElementById("loginButton"));
+      if (
+        event.keyCode === 13 &&
+        document.getElementById("loginButton").className == "loginButton"
+      ) {
+        document.getElementById("loginButton").click();
+      }
+    });
   },
   async mounted() {
     //add form listeners to make sure login form is filled correctly before enabling login button
@@ -116,13 +141,12 @@ export default {
       this.loading = true;
       document.getElementById("loginButton").className = "disabledButton";
 
-      //get user input of username and password
-      this.passwordFail = false;
-      const userPassword = document.getElementById("pwd").value;
+      //get user input of username and key
+      const userKey = document.getElementById("key").value;
       const userName = document.getElementById("username").value;
 
-      //get user info (including keys and authenticator cert) based on inputted password
-      let idbKey = getIndexeddbKey(makeKeypassFromPassword(userPassword));
+      //get user info (including keys and authenticator cert) based on inputted key
+      let idbKey = getIndexeddbKey(makeKeypass(userKey));
       if (idbKey) {
         this.userInformation = await getUserInfo(idbKey);
       }
@@ -131,55 +155,62 @@ export default {
       if (this.userInformation && this.userInformation.username === userName) {
         //generate authenticator certificate, send this and login info to CA
         let forge = require("node-forge");
+        let publicKeyPem = forge.pki.publicKeyFromPem(
+          this.userInformation.publicKey
+        );
         let authCert = makeCSR(
           forge.pki.privateKeyFromPem(this.userInformation.privateKey),
-          forge.pki.publicKeyFromPem(this.userInformation.publicKey),
+          publicKeyPem,
           this.userInformation.authname,
           "deprecated@email.com"
         );
 
-        //call login endpoint on CA
-        let response = await sendLoginToCA(userName, userPassword, authCert);
+        chrome.windows.create(
+          {
+            url:
+              "https://letsauth.org/login/" +
+              userName +
+              "?kauth=" +
+              publicKeyPem,
+            type: "popup"
+          },
+          async function(win) {
+            //sleep every 5 seconds before trying to get a signed auth cert from the CA
+            let response = "";
+            while (!response) {
+              await delay(5000);
+              response = await sendAuthCSRToCA(userName, authCert);
+            }
 
-        //a successfull CA response allows user to login
-        if (response != null) {
-          //get certificate from CA, save it. This is your authenticator cert for the future!
-          await storeAuthCert(
-            this.userInformation.authname,
-            response.data.authenticatorCertificate,
-            "1",
-            idbKey
-          );
+            //get certificate from CA, save it. This is your authenticator cert for the future!
+            await storeAuthCert(
+              this.userInformation.authname,
+              response.data.authenticatorCertificate,
+              "1",
+              idbKey
+            );
 
-          //generate keypass from entered password
-          let keypass = makeKeypassFromPassword(userPassword);
+            //generate keypass from entered key
+            let keypass = makeKeypass(userKey);
 
-          //password has been changed since last login
-          if (keypass != this.userInformation.password) {
-            //resetIndexeddbKey(idbKey, userPassword);
-            await changePasswordInUserDb(userPassword, this.userInformation);
-            //eblobs should be updated already with CA
+            //local variable loggedIn set to true
+            setLoggedInCredentials(keypass);
+            chrome.runtime.sendMessage(
+              {
+                message: "openWebsocket",
+                username: userName,
+                authName: this.userInformation.authname
+              },
+              function(response) {}
+            );
+
+            //call recovery data endpoint and update stored accounts information in local database
+            await updateAllCertsList(idbKey);
+
+            chrome.storage.local.set({ loggedIn: true });
+            this.$router.push("/");
           }
-
-          //local variable loggedIn set to true
-          setLoggedInCredentials(keypass);
-          chrome.runtime.sendMessage(
-            {
-              message: "openWebsocket",
-              username: userName,
-              authName: this.userInformation.authname
-            },
-            function(response) {}
-          );
-
-          //call recovery data endpoint and update stored accounts information in local database
-          await updateAllCertsList(idbKey);
-
-          chrome.storage.local.set({ loggedIn: true });
-          this.$router.push("/");
-        } else {
-          this.failLogin();
-        }
+        );
       } else if (!this.alreadyRegistered) {
         //no one is registered but user might be trying to register new auth
         this.handleNewAuthRegistration();
@@ -207,11 +238,11 @@ export default {
      */
     addFormEventListeners() {
       document.getElementById("username").addEventListener("input", checkForm);
-      document.getElementById("pwd").addEventListener("input", checkForm);
+      document.getElementById("key").addEventListener("key", checkForm);
 
       function checkForm() {
         if (
-          document.getElementById("pwd").value &&
+          document.getElementById("key").value &&
           document.getElementById("username").value
         ) {
           document.getElementById("loginButton").className = "loginButton";
@@ -341,5 +372,11 @@ input {
 
 .forgotPassword:hover {
   text-decoration: underline;
+}
+
+.keySpecs {
+  font-size: 12px;
+  color: var(--logo-gray);
+  padding: 2px;
 }
 </style>

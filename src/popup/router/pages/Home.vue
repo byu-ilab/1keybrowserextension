@@ -12,8 +12,8 @@
       <div class="title">1KEY</div>
 
       Welcome to the 1Key browser extension. Here we hope to relieve you and
-      your memory of all but one password. In this extension you can receive and
-      accept login requests from different websites.
+      your memory of all of your passwords. In this extension you can receive
+      and accept login requests from different websites.
 
       <div class="buttonRow">
         <div class="homeButton" @click="() => this.$router.push('/login')">

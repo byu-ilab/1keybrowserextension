@@ -8,13 +8,18 @@
     </div>
 
     <div v-if="!newAuthLogin && !alreadyRegistered" class="yubikey-prompt">
-      Have your YubiKey ready for registration. This might take a little bit.
+      Have your YubiKey ready for registration.
+      <br />
+      This might take a little bit.
     </div>
 
     <div class="registeredMessage" v-show="newAuthLogin && !alreadyRegistered">
       To register this browser, enter your 1Key account information and a new
-      name for this browser. Have your YubiKey ready for registration. This
-      might take a little bit.
+      name for this browser.
+      <br />
+      Have your YubiKey ready for registration.
+      <br />
+      This might take a little bit.
     </div>
 
     <form id="registerForm" v-if="!alreadyRegistered">
@@ -24,10 +29,20 @@
       </div>
       <div class="field">
         <label for="name">Device Name:</label><br />
-        <div class="passwordSpecs">
+        <div class="keySpecs">
           Choose a name to identify this browser.
         </div>
         <input type="text" id="name" name="name" /><br />
+      </div>
+
+      <div class="field" v-if="newAuthLogin && !AlreadyRegistered">
+        <label for="key">Key:</label><br />
+        <div class="keySpecs">
+          Enter the key that was given to you when <br />you first created your
+          1Key account.<br />
+          You should have printed this out or saved <br />it on another device.
+        </div>
+        <input type="text" id="key" name="key" /><br />
       </div>
 
       <div class="fail" id="failMessage" v-show="registerFail">
@@ -69,7 +84,7 @@ import {
 import {
   makeCSR,
   updateAllCertsList,
-  makeKeypassFromPassword,
+  makeKeypass,
   createAuthenticatorData,
   addAuthToAuthenticatorData,
   generateUniqueIdentifier,
@@ -132,6 +147,32 @@ export default {
       }
       document.getElementById("failMessage").style.color = "var(--n-fail-red)";
     }
+
+    document.getElementById("username").focus();
+
+    document.getElementById("name").addEventListener("keyup", function(event) {
+      event.preventDefault();
+      console.log(document.getElementById("registerButton"));
+      if (
+        event.keyCode === 13 &&
+        document.getElementById("registerButton").className == "registerButton"
+      ) {
+        document.getElementById("registerButton").click();
+      }
+    });
+
+    document
+      .getElementById("username")
+      .addEventListener("keyup", function(event) {
+        event.preventDefault();
+        if (
+          event.keyCode === 13 &&
+          document.getElementById("registerButton").className ==
+            "registerButton"
+        ) {
+          document.getElementById("registerButton").click();
+        }
+      });
   },
   methods: {
     async registerLetsAuthUser() {
@@ -142,10 +183,15 @@ export default {
       let userName = document.getElementById("username").value;
       let authName = document.getElementById("name").value;
       this.registerFail = false;
-      let symmetricKeyString = getSymmetricKeyString();
+      let symmetricKeyString = "";
 
+      if (this.newAuthLogin && !this.alreadyRegistered) {
+        symmetricKeyString = document.getElementById("key").value;
+      } else {
+        symmetricKeyString = getSymmetricKeyString();
+      }
       //get recovery passkeys, generate key that will be used to lock indexeddb
-      let keypass = makeKeypassFromPassword(symmetricKeyString);
+      let keypass = makeKeypass(symmetricKeyString);
       let indexeddbKey = getIndexeddbKey(keypass);
 
       //keys are created, keys and user information is stored in user database
@@ -174,7 +220,6 @@ export default {
         type = "register";
       } else {
         type = "login";
-        // var messageResponse = await sendLoginToCA(userName, userPassword, authCert);
       }
 
       chrome.windows.create(
@@ -207,7 +252,7 @@ export default {
 
             //loggedIn variable set to true
             chrome.storage.local.set({ loggedIn: true });
-            setLoggedInCredentials(makeKeypassFromPassword(symmetricKeyString));
+            setLoggedInCredentials(makeKeypass(symmetricKeyString));
 
             //create or update authenticator data with this device
             if (!this.newAuthLogin) {
@@ -218,7 +263,10 @@ export default {
 
             await updateAllCertsList(indexeddbKey);
 
-            this.$router.push("/");
+            this.$router.push({
+              name: "SecurityPreparation",
+              params: { key: symmetricKeyString }
+            });
           } else {
             await this.failRegister();
           }
@@ -233,13 +281,13 @@ export default {
      * and stores them (along with other important user info) on local encrypted database
      *
      * @param username inputted username, string
-     * @param password inputted plain text password, string
+     * @param symmetricKeyString symmetric key used to encrypt auth data key, string
      * @param authname inputted name for this authenticator, string
      * @param idbKey local database key that encrypts database
      *
      * @returns object of user info that was just stored
      */
-    async generateAndStoreKeys(username, password, authname, idbKey) {
+    async generateAndStoreKeys(username, symmetricKeyString, authname, idbKey) {
       //generate key pair
       let forge = require("node-forge");
       const keyPair = forge.pki.rsa.generateKeyPair(2048);
@@ -254,7 +302,7 @@ export default {
         pemPrivate,
         pemPublic,
         username,
-        makeKeypassFromPassword(password),
+        makeKeypass(symmetricKeyString),
         authname,
         idbKey
       );
@@ -265,7 +313,6 @@ export default {
     },
     /**
      * Adds form event listeners that ensure all fields are filled correctly before register button is enabled.
-     * For first time registration it checks that passwords match and is 8+ characters
      */
     addFormEventListeners() {
       let callback = this.newAuthLogin ? checkFormNewAuth : checkForm;
@@ -360,7 +407,6 @@ form {
   color: #165663;
   font-weight: bold;
   font-size: 12px;
-  margin-top: 15px;
 }
 
 input {
@@ -377,7 +423,7 @@ input {
   background: #165663;
   text-align: center;
   padding: 10px;
-  margin: 15px 0px 15px 0px;
+  margin: 9px 0px 15px 0px;
   box-shadow: 0.1em 0.1em 0.1em rgba(0, 0, 0, 0.3);
   border-radius: 25px;
   color: white;
@@ -389,7 +435,7 @@ input {
   background: #899fa3;
   text-align: center;
   padding: 10px;
-  margin: 15px 0px 15px 0px;
+  margin: 9px 0px 15px 0px;
   box-shadow: 0.1em 0.1em 0.1em rgba(0, 0, 0, 0.3);
   border-radius: 25px;
   width: 120px;
@@ -412,7 +458,7 @@ form .fail {
   padding: 2px;
 }
 
-.passwordSpecs {
+.keySpecs {
   font-size: 12px;
   color: var(--logo-gray);
   padding: 2px;
@@ -432,7 +478,7 @@ form .fail {
   color: #165663;
   font-weight: bold;
   font-size: 12px;
-  padding: 10px;
+  padding: 10px 10px 5px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;

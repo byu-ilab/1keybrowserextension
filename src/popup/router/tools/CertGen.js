@@ -133,17 +133,17 @@ export function generateUniqueIdentifier() {
 /**
  * Makes a symmetric key derived from a given string.
  *
- * @param userPassword string to use for key derivation
+ * @param keyString string to use for key derivation
  * @param salt optional; a specified salt to make key derivation more secure
  *
  * @returns base 64 encoded symmetric key
  */
-export function makeKeypassFromPassword(userPassword, salt) {
-  //make key from user password.
+export function makeKeypass(keyString, salt) {
+  //make key from string.
   //encode64 key to make a "passKey"
   let scrypt = require("scrypt-js");
 
-  let password = Buffer.from(userPassword, "utf-8");
+  let keyBuffer = Buffer.from(keyString, "utf-8");
   let finalSalt;
   if (salt === undefined) {
     finalSalt = Buffer.from("", "utf-8");
@@ -156,7 +156,7 @@ export function makeKeypassFromPassword(userPassword, salt) {
     p = 1;
   const keyLen = 32;
 
-  const key = scrypt.syncScrypt(password, finalSalt, N, r, p, keyLen);
+  const key = scrypt.syncScrypt(keyBuffer, finalSalt, N, r, p, keyLen);
   let base64PassKey = window.btoa(String.fromCharCode.apply(null, key));
   return base64PassKey;
 }
@@ -364,9 +364,13 @@ export async function updateAllCertsList(idbKey) {
   let userInfo = await getUserInfo(idbKey);
   let authCert = await getAuthCert(userInfo.authname);
 
-  //generate password derived key
-  let passwordKey = await getLoggedInCredentials();
-  if (passwordKey === null || passwordKey === undefined || passwordKey === "") {
+  //generate symmetric key
+  let symmetricKey = await getLoggedInCredentials();
+  if (
+    symmetricKey === null ||
+    symmetricKey === undefined ||
+    symmetricKey === ""
+  ) {
     return; //user is not logged in and cannot update certs
   }
 
@@ -383,7 +387,7 @@ export async function updateAllCertsList(idbKey) {
       // let encryptedKey = response.data.key;
 
       //decrypt encrypted key
-      let dataKey = await decryptKey(parsedData.key, passwordKey);
+      let dataKey = await decryptKey(parsedData.key, symmetricKey);
 
       //decrypt auth data map
       let data = await decryptData(encryptedData, dataKey);
@@ -458,7 +462,7 @@ async function getDecryptedAuthenticatorData() {
       let dataObj = JSON.parse(authDataResponse.data.authenticationData);
 
       //decrypt authentication data
-      let dataKey = await decryptKey(dataObj.key, userInfo.password);
+      let dataKey = await decryptKey(dataObj.key, userInfo.symmetricKey);
       let data = await decryptData(dataObj.data, dataKey);
 
       return {
@@ -467,7 +471,7 @@ async function getDecryptedAuthenticatorData() {
         lockID: lockResponse.data.lockIdentifier
       };
     } else {
-      let key = makeKeypassFromPassword(userInfo.password);
+      let key = makeKeypass(userInfo.symmetricKey);
       //there is no authenticator data yet for this account, it's first time registration
       //initialize empty lists and create random symmetric key to encrypt data with
       return {
@@ -503,8 +507,8 @@ async function encryptAndUpdateAuthenticatorData(data, dataKey, lockID) {
   //encrypt authenticator data
   let encryptedData = await encryptData(data, dataKey);
 
-  //encrypt key with master password
-  let encryptedKey = await encryptData(dataKey, userInfo.password);
+  //encrypt key with symmetric key
+  let encryptedKey = await encryptData(dataKey, userInfo.symmetricKey);
 
   //make json string of encrypted key and newly encrypted data to be stored with the CA
   let dataObj = JSON.stringify({
@@ -754,16 +758,16 @@ export async function getAccountsData() {
   return accountsArray;
 }
 
-export async function removeAuthenticatorFromAuthData(
-  authenticator,
-  password,
-  username
-) {
+export async function removeAuthenticatorFromAuthData(authenticator, username) {
   let userInfo = await getUserInfo();
   let authCertObj = await getAuthCert(userInfo.authname);
-  //generate password derived key
-  let passwordKey = await getLoggedInCredentials();
-  if (passwordKey === null || passwordKey === undefined || passwordKey === "") {
+  //generate symmetric key
+  let symmetricKey = await getLoggedInCredentials();
+  if (
+    symmetricKey === null ||
+    symmetricKey === undefined ||
+    symmetricKey === ""
+  ) {
     return; //user is not logged in and cannot edit authenticator data
   }
 
@@ -780,7 +784,7 @@ export async function removeAuthenticatorFromAuthData(
     // let encryptedKey = response.data.key;
 
     //decrypt encrypted key
-    let dataKey = await decryptKey(parsedData.key, passwordKey);
+    let dataKey = await decryptKey(parsedData.key, symmetricKey);
 
     //decrypt auth data map
     let data = await decryptData(encryptedData, dataKey);

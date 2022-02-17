@@ -142,6 +142,11 @@ input[data-v-6bfab46e] {
 .forgotPassword[data-v-6bfab46e]:hover {
   text-decoration: underline;
 }
+.keySpecs[data-v-6bfab46e] {
+  font-size: 12px;
+  color: var(--logo-gray);
+  padding: 2px;
+}
 
 .register[data-v-2f289b1a] {
   width: 360px;
@@ -179,7 +184,6 @@ form[data-v-2f289b1a] {
   color: #165663;
   font-weight: bold;
   font-size: 12px;
-  margin-top: 15px;
 }
 input[data-v-2f289b1a] {
   margin-top: 2px;
@@ -193,7 +197,7 @@ input[data-v-2f289b1a] {
   background: #165663;
   text-align: center;
   padding: 10px;
-  margin: 15px 0px 15px 0px;
+  margin: 9px 0px 15px 0px;
   box-shadow: 0.1em 0.1em 0.1em rgba(0, 0, 0, 0.3);
   border-radius: 25px;
   color: white;
@@ -204,7 +208,7 @@ input[data-v-2f289b1a] {
   background: #899fa3;
   text-align: center;
   padding: 10px;
-  margin: 15px 0px 15px 0px;
+  margin: 9px 0px 15px 0px;
   box-shadow: 0.1em 0.1em 0.1em rgba(0, 0, 0, 0.3);
   border-radius: 25px;
   width: 120px;
@@ -223,7 +227,7 @@ form .fail[data-v-2f289b1a] {
   color: #b22222;
   padding: 2px;
 }
-.passwordSpecs[data-v-2f289b1a] {
+.keySpecs[data-v-2f289b1a] {
   font-size: 12px;
   color: var(--logo-gray);
   padding: 2px;
@@ -241,7 +245,7 @@ form .fail[data-v-2f289b1a] {
   color: #165663;
   font-weight: bold;
   font-size: 12px;
-  padding: 10px;
+  padding: 10px 10px 5px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;

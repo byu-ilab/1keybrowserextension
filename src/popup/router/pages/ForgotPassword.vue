@@ -83,7 +83,7 @@ import {
 import { recoverAccountWithCA } from "../tools/ServerFacade.js";
 import {
   signString,
-  makeKeypassFromPassword,
+  makeKeypass,
   updateCertBlobs,
   updateAllCertsList
 } from "../tools/CertGen.js";

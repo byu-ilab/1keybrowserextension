@@ -165,7 +165,6 @@ export default {
       } else {
         let response = await removeAuthenticatorFromAuthData(
           this.editDevice,
-          userPassword,
           userName
         );
 
