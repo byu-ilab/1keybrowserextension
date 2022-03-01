@@ -2,7 +2,7 @@
   "name": "1Key Browser Extension",
   "description": "Browser extension version of the 1Key app",
   "author": "Let's Authenticate",
-  "version": 1.0,
+  "version": 3.0,
   "manifest_version": 2,
   "icons": {
     "48": "icons/key_icon.png",

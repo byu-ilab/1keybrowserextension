@@ -7,62 +7,74 @@
       Register
     </div>
 
-    <div v-if="!newAuthLogin && !alreadyRegistered" class="yubikey-prompt">
-      Have your YubiKey ready for registration.
-      <br />
-      This might take a little bit.
-    </div>
-
-    <div class="registeredMessage" v-show="newAuthLogin && !alreadyRegistered">
-      To register this browser, enter your 1Key account information and a new
-      name for this browser.
-      <br />
-      Have your YubiKey ready for registration.
-      <br />
-      This might take a little bit.
-    </div>
-
-    <form id="registerForm" v-if="!alreadyRegistered">
-      <div class="field">
-        <label for="username">Username:</label><br />
-        <input type="text" id="username" name="username" /><br />
+    <div class="form-and-button">
+      <div v-if="!newAuthLogin && !alreadyRegistered" class="yubikey-prompt">
+        Have your YubiKey ready for registration.
+        <br />
+        This might take a little bit.
       </div>
-      <div class="field">
-        <label for="name">Device Name:</label><br />
-        <div class="keySpecs">
-          Choose a name to identify this browser.
+
+      <!-- <div class="registeredMessage" v-show="newAuthLogin && !alreadyRegistered">
+        To register this browser, enter your 1Key account information and a new
+        name for this browser.
+        <br />
+        Have your YubiKey ready for registration.
+        <br />
+        This might take a little bit.
+      </div> -->
+
+      <form id="registerForm" v-if="!alreadyRegistered">
+        <div class="field">
+          <label for="username">Username:</label><br />
+          <input type="text" id="username" name="username" /><br />
         </div>
-        <input type="text" id="name" name="name" /><br />
-      </div>
 
-      <div class="field" v-if="newAuthLogin && !AlreadyRegistered">
-        <label for="key">Key:</label><br />
-        <div class="keySpecs">
-          Enter the key that was given to you when <br />you first created your
-          1Key account.<br />
-          You should have printed this out or saved <br />it on another device.
+        <div class="field">
+          <label for="name">Device Name:</label><br />
+          <div class="keySpecs">
+            Choose a name to identify this browser.
+          </div>
+          <input type="text" id="name" name="name" /><br />
         </div>
-        <input type="text" id="key" name="key" /><br />
+
+        <div class="field">
+          <label for="pin">Pin:</label><br />
+          <div class="keySpecs">
+            Enter a 6 digit pin for this device
+          </div>
+          <input type="password" id="pin" name="pin" /><br />
+        </div>
+
+        <div class="field" v-if="newAuthLogin && !AlreadyRegistered">
+          <label for="key">Key:</label><br />
+          <div class="keySpecs">
+            Enter the key that was given to you when <br />you first created
+            your 1Key account.<br />
+            You should have printed this out or saved <br />it on another
+            device.
+          </div>
+          <input type="text" id="key" name="key" /><br />
+        </div>
+
+        <div class="fail" id="failMessage" v-show="registerFail">
+          Registration failed.
+        </div>
+      </form>
+
+      <div
+        class="disabledButton"
+        id="registerButton"
+        @click="registerLetsAuthUser"
+        v-if="!alreadyRegistered"
+      >
+        Register
       </div>
 
-      <div class="fail" id="failMessage" v-show="registerFail">
-        Registration failed.
+      <div class="registeredMessage" v-show="alreadyRegistered">
+        This browser is already registered. No additional accounts may be linked
+        to this 1Key browser extension.
+        <img src="../../../icons/key_icon.png" width="80px" height="80px" />
       </div>
-    </form>
-
-    <div
-      class="disabledButton"
-      id="registerButton"
-      @click="registerLetsAuthUser"
-      v-if="!alreadyRegistered"
-    >
-      Register
-    </div>
-
-    <div class="registeredMessage" v-show="alreadyRegistered">
-      This browser is already registered. No additional accounts may be linked
-      to this 1Key browser extension.
-      <img src="../../../icons/key_icon.png" width="80px" height="80px" />
     </div>
   </div>
 </template>
@@ -173,6 +185,16 @@ export default {
           document.getElementById("registerButton").click();
         }
       });
+
+    document.getElementById("pin").addEventListener("keyup", function(event) {
+      event.preventDefault();
+      if (
+        event.keyCode === 13 &&
+        document.getElementById("registerButton").className == "registerButton"
+      ) {
+        document.getElementById("registerButton").click();
+      }
+    });
   },
   methods: {
     async registerLetsAuthUser() {
@@ -182,17 +204,22 @@ export default {
       //get user input from registration form
       let userName = document.getElementById("username").value;
       let authName = document.getElementById("name").value;
+      let pin = document.getElementById("pin").value;
       this.registerFail = false;
-      let symmetricKeyString = "";
+      let authSymmetricKeyString = "";
 
       if (this.newAuthLogin && !this.alreadyRegistered) {
-        symmetricKeyString = document.getElementById("key").value;
+        authSymmetricKeyString = document.getElementById("key").value;
       } else {
-        symmetricKeyString = getSymmetricKeyString();
+        authSymmetricKeyString = getSymmetricKeyString();
       }
-      //get recovery passkeys, generate key that will be used to lock indexeddb
-      let keypass = makeKeypass(symmetricKeyString);
-      let indexeddbKey = getIndexeddbKey(keypass);
+
+      //This is the symmetric key that will be stored in the userInfo and used to decrypt the authentication data
+      let authKeypass = makeKeypass(authSymmetricKeyString);
+
+      //This is derived from the pin and used to encrypt local storage
+      let indexeddbKeypass = makeKeypass(pin);
+      let indexeddbKey = getIndexeddbKey(indexeddbKeypassypass);
 
       //keys are created, keys and user information is stored in user database
       var userInfo = await this.generateAndStoreKeys(
@@ -252,7 +279,7 @@ export default {
 
             //loggedIn variable set to true
             chrome.storage.local.set({ loggedIn: true });
-            setLoggedInCredentials(makeKeypass(symmetricKeyString));
+            setLoggedInCredentials(makeKeypass(pin));
 
             //create or update authenticator data with this device
             if (!this.newAuthLogin) {
@@ -318,11 +345,14 @@ export default {
       let callback = this.newAuthLogin ? checkFormNewAuth : checkForm;
       document.getElementById("username").addEventListener("input", callback);
       document.getElementById("name").addEventListener("input", callback);
+      document.getElementById("pin").addEventListener("input", callback);
 
       function checkForm() {
         if (
           document.getElementById("username").value &&
-          document.getElementById("name").value
+          document.getElementById("name").value &&
+          document.getElementById("pin").value &&
+          document.getElementById("pin").value.length == 6
         ) {
           document.getElementById("registerButton").className =
             "registerButton";
@@ -401,6 +431,14 @@ export default {
   width: 22px;
   height: 22px;
   color: white;
+}
+
+.form-and-button {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
 }
 
 form {

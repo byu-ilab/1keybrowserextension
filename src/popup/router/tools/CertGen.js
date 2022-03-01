@@ -462,7 +462,7 @@ async function getDecryptedAuthenticatorData() {
       let dataObj = JSON.parse(authDataResponse.data.authenticationData);
 
       //decrypt authentication data
-      let dataKey = await decryptKey(dataObj.key, userInfo.symmetricKey);
+      let dataKey = await decryptKey(dataObj.key, userInfo.authSymmetricKey);
       let data = await decryptData(dataObj.data, dataKey);
 
       return {
@@ -471,7 +471,7 @@ async function getDecryptedAuthenticatorData() {
         lockID: lockResponse.data.lockIdentifier
       };
     } else {
-      let key = makeKeypass(userInfo.symmetricKey);
+      let key = makeKeypass(userInfo.authSymmetricKey);
       //there is no authenticator data yet for this account, it's first time registration
       //initialize empty lists and create random symmetric key to encrypt data with
       return {
@@ -508,7 +508,7 @@ async function encryptAndUpdateAuthenticatorData(data, dataKey, lockID) {
   let encryptedData = await encryptData(data, dataKey);
 
   //encrypt key with symmetric key
-  let encryptedKey = await encryptData(dataKey, userInfo.symmetricKey);
+  let encryptedKey = await encryptData(dataKey, userInfo.authSymmetricKey);
 
   //make json string of encrypted key and newly encrypted data to be stored with the CA
   let dataObj = JSON.stringify({

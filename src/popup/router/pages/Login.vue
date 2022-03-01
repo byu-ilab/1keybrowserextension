@@ -18,13 +18,11 @@
         /><br />
       </div>
       <div class="field">
-        <label for="key">Key:</label><br />
+        <label for="pin">Pin:</label><br />
         <div class="keySpecs">
-          Enter the key that was given to you when <br />you first created your
-          1Key account.<br />
-          You should have printed this out or saved <br />it on another device.
+          Enter a 6 digit pin for this device
         </div>
-        <input type="text" id="key" name="key" /><br />
+        <input type="password" id="pin" name="pin" /><br />
       </div>
     </form>
 
@@ -93,9 +91,9 @@ export default {
       }
       document.getElementById("username").style.backgroundColor =
         "var(--n-gray)";
-      document.getElementById("pwd").style.backgroundColor = "var(--n-gray)";
+      document.getElementById("pin").style.backgroundColor = "var(--n-gray)";
       document.getElementById("username").style.color = "white";
-      document.getElementById("pwd").style.color = "white";
+      document.getElementById("pin").style.color = "white";
       document.getElementById("forgotPwd").style.color = "white";
       document.getElementById("failMessage").style.color = "var(--n-fail-red)";
     }
@@ -116,7 +114,7 @@ export default {
         }
       });
 
-    document.getElementById("key").addEventListener("keyup", function(event) {
+    document.getElementById("pin").addEventListener("keyup", function(event) {
       event.preventDefault();
       console.log(document.getElementById("loginButton"));
       if (
@@ -142,11 +140,11 @@ export default {
       document.getElementById("loginButton").className = "disabledButton";
 
       //get user input of username and key
-      const userKey = document.getElementById("key").value;
+      const pin = document.getElementById("pin").value;
       const userName = document.getElementById("username").value;
 
       //get user info (including keys and authenticator cert) based on inputted key
-      let idbKey = getIndexeddbKey(makeKeypass(userKey));
+      let idbKey = getIndexeddbKey(makeKeypass(pin));
       if (idbKey) {
         this.userInformation = await getUserInfo(idbKey);
       }
@@ -191,7 +189,7 @@ export default {
             );
 
             //generate keypass from entered key
-            let keypass = makeKeypass(userKey);
+            let keypass = makeKeypass(pin);
 
             //local variable loggedIn set to true
             setLoggedInCredentials(keypass);
@@ -238,11 +236,11 @@ export default {
      */
     addFormEventListeners() {
       document.getElementById("username").addEventListener("input", checkForm);
-      document.getElementById("key").addEventListener("key", checkForm);
+      document.getElementById("pin").addEventListener("pin", checkForm);
 
       function checkForm() {
         if (
-          document.getElementById("key").value &&
+          document.getElementById("pin").value &&
           document.getElementById("username").value
         ) {
           document.getElementById("loginButton").className = "loginButton";

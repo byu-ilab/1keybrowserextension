@@ -180,6 +180,13 @@ input[data-v-6bfab46e] {
   height: 22px;
   color: white;
 }
+.form-and-button[data-v-2f289b1a] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
 form[data-v-2f289b1a] {
   color: #165663;
   font-weight: bold;

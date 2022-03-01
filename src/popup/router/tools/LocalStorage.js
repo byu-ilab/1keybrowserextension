@@ -20,12 +20,12 @@ export function clearSecretLocalStorage() {
  * Sets the password key in Secure LS.
  * Called when user logs into their 1Key account.
  *
- * @param password symmetric key made from the master password
+ * @param pin symmetric key made from the device pin, will be used to encrypt/decrypt the local database.
  */
-export function setLoggedInCredentials(password) {
+export function setLoggedInCredentials(pin) {
   //store password while user is logged in
-  let passwordLs = new SecureLS({ encodingType: "des", isCompression: true });
-  passwordLs.set("credentials", password);
+  let pinLs = new SecureLS({ encodingType: "des", isCompression: true });
+  pinLs.set("credentials", pin);
 }
 
 /**
@@ -36,9 +36,9 @@ export function setLoggedInCredentials(password) {
  */
 export function getLoggedInCredentials() {
   //store password while user is logged in
-  let passwordLs = new SecureLS({ encodingType: "des", isCompression: true });
+  let pinLs = new SecureLS({ encodingType: "des", isCompression: true });
   try {
-    return passwordLs.get("credentials");
+    return pinLs.get("credentials");
   } catch (error) {
     return undefined;
   }
@@ -51,8 +51,8 @@ export function getLoggedInCredentials() {
  */
 export function setLogoutCredentials() {
   //take out stored password so nothing can be done
-  let passwordLs = new SecureLS({ encodingType: "des", isCompression: true });
-  return passwordLs.remove("credentials");
+  let pinLs = new SecureLS({ encodingType: "des", isCompression: true });
+  return pinLs.remove("credentials");
 }
 
 /**
@@ -125,15 +125,15 @@ export function resetIndexeddbKey(key, newPassword) {
  * Gets indexeddb key from Secure LS storage.
  * This is the key that encrypts the local database.
  *
- * @param password password-derived symmetric key used to encrypt storage of the indexeddb key.
+ * @param pin pin-derived symmetric key used to encrypt storage of the indexeddb key.
  * @returns indexed db key that encrypts the local database or undefined if an error occurs
  */
-export function getIndexeddbKey(password) {
+export function getIndexeddbKey(pin) {
   try {
     let ls = new SecureLS({
       encodingType: "des",
       isCompression: true,
-      //encryptionSecret: password
+      //encryptionSecret: pin
       encryptionNamespace: "main"
     });
     let keyObj = ls.get("indexeddbKey");

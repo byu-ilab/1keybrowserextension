@@ -16,7 +16,7 @@ import { applyEncryptionMiddleware, cryptoOptions } from "dexie-encrypted";
  * @param pemPrivateKey PEM string of this authenticator's private key
  * @param pemPublicKey PEM string of this authenticator's public key
  * @param username string of username for user's 1Key account
- * @param symmetricKey string of symmetric key derived from generated/user entered string
+ * @param symmetricKey string of symmetric key derived from generated/user entered string, used to encrypt authentication data key
  * @param authname string of name given to this authenticator
  * @param idbKey key used to encrypt the user database
  */
@@ -48,7 +48,7 @@ export async function storeNewUserInfo(
     privateKey: pemPrivateKey,
     publicKey: pemPublicKey,
     username: username,
-    symmetricKey: symmetricKey,
+    authSymmetricKey: symmetricKey,
     authname: authname
   };
 
