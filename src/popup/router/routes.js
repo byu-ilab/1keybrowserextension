@@ -29,8 +29,8 @@ export default [
     component: ForgotPassword
   },
   {
-    path: "/security",
+    path: "/security/",
     component: SecurityPreparation,
-    name: "Security"
+    name: "SecurityPreparation"
   }
 ];

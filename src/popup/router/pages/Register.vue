@@ -206,8 +206,9 @@ export default {
       let authName = document.getElementById("name").value;
       let pin = document.getElementById("pin").value;
       this.registerFail = false;
-      let authSymmetricKeyString = "";
 
+      //get the keystring that will be used as a symmetric key
+      let authSymmetricKeyString = "";
       if (this.newAuthLogin && !this.alreadyRegistered) {
         authSymmetricKeyString = document.getElementById("key").value;
       } else {
@@ -219,12 +220,12 @@ export default {
 
       //This is derived from the pin and used to encrypt local storage
       let indexeddbKeypass = makeKeypass(pin);
-      let indexeddbKey = getIndexeddbKey(indexeddbKeypassypass);
+      let indexeddbKey = getIndexeddbKey(indexeddbKeypass);
 
       //keys are created, keys and user information is stored in user database
       var userInfo = await this.generateAndStoreKeys(
         userName,
-        symmetricKeyString,
+        authSymmetricKeyString,
         authName,
         indexeddbKey
       );
@@ -249,6 +250,7 @@ export default {
         type = "login";
       }
 
+      let hasFinished = false;
       chrome.windows.create(
         {
           url:
@@ -283,25 +285,44 @@ export default {
 
             //create or update authenticator data with this device
             if (!this.newAuthLogin) {
-              await createAuthenticatorData(authName, response.authCert);
+              await createAuthenticatorData(
+                authName,
+                response.data.authenticatorCertificate
+              );
             } else {
-              await addAuthToAuthenticatorData(authName, response.authCert);
+              await addAuthToAuthenticatorData(
+                authName,
+                response.data.authenticatorCertificate
+              );
             }
 
             await updateAllCertsList(indexeddbKey);
-
-            this.$router.push({
-              name: "SecurityPreparation",
-              params: { key: symmetricKeyString }
-            });
           } else {
             await this.failRegister();
           }
 
           this.loading = false;
-          win.close();
+          console.log("win");
+          console.log(win);
+          //chrome.windows.remove(win.id);
+          hasFinished = true;
         }
       );
+
+      while (!hasFinished) {
+        await delay(1000);
+      }
+      console.log("authSymmetricKeyString");
+      console.log(authSymmetricKeyString);
+      console.log(this.newAuthLogin);
+      if (!this.newAuthLogin) {
+        this.$router.push({
+          name: "SecurityPreparation",
+          params: { key: authSymmetricKeyString }
+        });
+      } else {
+        this.$router.push("/");
+      }
     },
     /**
      * Generates the public/private keypair for this authenticator

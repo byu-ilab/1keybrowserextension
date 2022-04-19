@@ -364,8 +364,8 @@ export async function updateAllCertsList(idbKey) {
   let userInfo = await getUserInfo(idbKey);
   let authCert = await getAuthCert(userInfo.authname);
 
-  //generate symmetric key
-  let symmetricKey = await getLoggedInCredentials();
+  //generate symmetric key used for auth data
+  let symmetricKey = await userInfo.authSymmetricKey;
   if (
     symmetricKey === null ||
     symmetricKey === undefined ||
@@ -762,7 +762,7 @@ export async function removeAuthenticatorFromAuthData(authenticator, username) {
   let userInfo = await getUserInfo();
   let authCertObj = await getAuthCert(userInfo.authname);
   //generate symmetric key
-  let symmetricKey = await getLoggedInCredentials();
+  let symmetricKey = userInfo.authSymmetricKey;
   if (
     symmetricKey === null ||
     symmetricKey === undefined ||

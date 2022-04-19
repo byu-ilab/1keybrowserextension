@@ -58,8 +58,13 @@
 
 import LoadingIcon from "../components/LoadingIcon.vue";
 import { sendAuthCSRToCA } from "../tools/ServerFacade.js";
-import { storeAuthCert } from "../tools/CertDatabase.js";
-import { makeCSR, updateAllCertsList, makeKeypass } from "../tools/CertGen.js";
+import { storeAuthCert, getAuthCert } from "../tools/CertDatabase.js";
+import {
+  makeCSR,
+  updateAllCertsList,
+  makeKeypass,
+  delay
+} from "../tools/CertGen.js";
 import {
   getUserInfo,
   changePasswordInUserDb,
@@ -151,64 +156,15 @@ export default {
 
       //if password was correct, user information is used for login api
       if (this.userInformation && this.userInformation.username === userName) {
-        //generate authenticator certificate, send this and login info to CA
-        let forge = require("node-forge");
-        let publicKeyPem = forge.pki.publicKeyFromPem(
-          this.userInformation.publicKey
-        );
-        let authCert = makeCSR(
-          forge.pki.privateKeyFromPem(this.userInformation.privateKey),
-          publicKeyPem,
-          this.userInformation.authname,
-          "deprecated@email.com"
-        );
+        //generate keypass from entered key
+        let keypass = makeKeypass(pin);
 
-        chrome.windows.create(
-          {
-            url:
-              "https://letsauth.org/login/" +
-              userName +
-              "?kauth=" +
-              publicKeyPem,
-            type: "popup"
-          },
-          async function(win) {
-            //sleep every 5 seconds before trying to get a signed auth cert from the CA
-            let response = "";
-            while (!response) {
-              await delay(5000);
-              response = await sendAuthCSRToCA(userName, authCert);
-            }
+        setLoggedInCredentials(keypass);
 
-            //get certificate from CA, save it. This is your authenticator cert for the future!
-            await storeAuthCert(
-              this.userInformation.authname,
-              response.data.authenticatorCertificate,
-              "1",
-              idbKey
-            );
-
-            //generate keypass from entered key
-            let keypass = makeKeypass(pin);
-
-            //local variable loggedIn set to true
-            setLoggedInCredentials(keypass);
-            chrome.runtime.sendMessage(
-              {
-                message: "openWebsocket",
-                username: userName,
-                authName: this.userInformation.authname
-              },
-              function(response) {}
-            );
-
-            //call recovery data endpoint and update stored accounts information in local database
-            await updateAllCertsList(idbKey);
-
-            chrome.storage.local.set({ loggedIn: true });
-            this.$router.push("/");
-          }
-        );
+        await updateAllCertsList(idbKey);
+        this.loading = false;
+        chrome.storage.local.set({ loggedIn: true });
+        this.$router.push("/");
       } else if (!this.alreadyRegistered) {
         //no one is registered but user might be trying to register new auth
         this.handleNewAuthRegistration();
@@ -216,8 +172,6 @@ export default {
         //someone is registered so incorrect credentials were given
         this.failLogin();
       }
-
-      this.loading = false;
     },
     /**
      * If no one is registered with this browser but user is attempting to login,
@@ -236,11 +190,14 @@ export default {
      */
     addFormEventListeners() {
       document.getElementById("username").addEventListener("input", checkForm);
-      document.getElementById("pin").addEventListener("pin", checkForm);
+      document.getElementById("pin").addEventListener("input", checkForm);
 
       function checkForm() {
+        console.log(document.getElementById("pin").value);
+        console.log(document.getElementById("username").value);
         if (
           document.getElementById("pin").value &&
+          document.getElementById("pin").value.length == 6 &&
           document.getElementById("username").value
         ) {
           document.getElementById("loginButton").className = "loginButton";
@@ -260,6 +217,7 @@ export default {
     failLogin() {
       document.getElementById("loginForm").reset();
       this.loginFail = true;
+      this.loading = false;
     },
     /**
      * Goes back to previous page (Home.vue).
