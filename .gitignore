@@ -10,4 +10,4 @@
 .svn/
 **/node_modules
 *~
-dist/
+dist/*

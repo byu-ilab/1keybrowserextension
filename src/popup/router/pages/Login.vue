@@ -130,10 +130,13 @@ export default {
         this.userInformation &&
         this.userInformation.username === this.username
       ) {
+        console.log("got user information");
         //generate keypass from entered key
         let keypass = makeKeypass(this.pin);
+        console.log("made a key from pin");
 
         setLoggedInCredentials(keypass);
+        console.log("set logged in credentials");
 
         await updateAllCertsList(idbKey);
         this.loading = false;
@@ -146,6 +149,7 @@ export default {
         this.handleNewAuthRegistration();
       } else {
         //someone is registered so incorrect credentials were given
+        console.log("failed login");
         this.failLogin();
       }
     },
