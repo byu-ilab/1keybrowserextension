@@ -23,6 +23,12 @@ Followed by:
   npm run watch:dev
 ```
 
+Update from DZ, I now use:
+
+```
+npm run build
+```
+
 ## Test on Chrome
 
 Go to chrome://extensions
