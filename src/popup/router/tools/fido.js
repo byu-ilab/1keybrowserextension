@@ -19,7 +19,7 @@ export function bufferEncode(value) {
 export async function fido_register(username_register, csr) {
   const register_start_response = await axios({
     method: "get",
-    url: `https://cors-anywhere.herokuapp.com/https://letsauth.org/la0.3/register/begin/${username_register}`,
+    url: `https://api.letsauth.org/la0.3/register/begin/${username_register}`,
     data: {
       CSR: csr
     }
@@ -28,10 +28,11 @@ export async function fido_register(username_register, csr) {
   let credentialCreationOptions = register_start_response.data;
   console.log("Register begin - response recieved", register_start_response);
   console.log("Cred creation options", credentialCreationOptions);
-  credentialCreationOptions.publicKey.challenge = this.bufferDecode(
+  credentialCreationOptions.publicKey.rp.id = 'jlaemolljfgeadmkmkcefgioohlkcbhb';
+  credentialCreationOptions.publicKey.challenge = bufferDecode(
     credentialCreationOptions.publicKey.challenge
   );
-  credentialCreationOptions.publicKey.user.id = this.bufferDecode(
+  credentialCreationOptions.publicKey.user.id = bufferDecode(
     credentialCreationOptions.publicKey.user.id
   );
   if (credentialCreationOptions.publicKey.excludeCredentials) {
@@ -42,7 +43,7 @@ export async function fido_register(username_register, csr) {
     ) {
       credentialCreationOptions.publicKey.excludeCredentials[
         i
-      ].id = this.bufferDecode(
+      ].id = bufferDecode(
         credentialCreationOptions.publicKey.excludeCredentials[i].id
       );
     }
@@ -60,14 +61,14 @@ export async function fido_register(username_register, csr) {
   //Send signed info with public key
   const register_finish_response = await axios({
     method: "post",
-    url: `https://cors-anywhere.herokuapp.com/https://letsauth.org/la0.3/register/finish/${username_register}`,
+    url: `https://api.letsauth.org/la0.3/register/finish/${username_register}`,
     data: {
       id: credential.id,
-      rawId: this.bufferEncode(rawId),
+      rawId: bufferEncode(rawId),
       type: credential.type,
       response: {
-        attestationObject: this.bufferEncode(attestationObject),
-        clientDataJSON: this.bufferEncode(clientDataJSON)
+        attestationObject: bufferEncode(attestationObject),
+        clientDataJSON: bufferEncode(clientDataJSON)
       }
     }
   });
@@ -77,20 +78,20 @@ export async function fido_register(username_register, csr) {
 export async function fido_login(username_login, csr) {
   const login_part1 = await axios({
     method: "get",
-    url: `https://cors-anywhere.herokuapp.com/https://letsauth.org/la0.3/login/begin/${username_login}`,
+    url: `https://api.letsauth.org/la0.3/login/begin/${username_login}`,
     data: {
       CSR: csr
     }
   });
   console.log(login_part1);
   let credentialRequestOptions = login_part1.data;
-  credentialRequestOptions.publicKey.challenge = this.bufferDecode(
+  credentialRequestOptions.publicKey.challenge = bufferDecode(
     credentialRequestOptions.publicKey.challenge
   );
   let allowCredentials = credentialRequestOptions.publicKey.allowCredentials;
   for (const [key, value] of Object.entries(allowCredentials)) {
     console.log(value);
-    allowCredentials[key].id = this.bufferDecode(value.id);
+    allowCredentials[key].id = bufferDecode(value.id);
   }
 
   const credentialAssertion = await navigator.credentials.get({
@@ -105,16 +106,16 @@ export async function fido_login(username_login, csr) {
 
   const login_part2 = await axios({
     method: "post",
-    url: `https://cors-anywhere.herokuapp.com/https://letsauth.org/la0.3/login/finish/${username_login}`,
+    url: `https://cors-anywhere.herokuapp.com/https://api.letsauth.org/la0.3/login/finish/${username_login}`,
     data: {
       id: credentialAssertion.id,
-      rawId: this.bufferEncode(rawId),
+      rawId: bufferEncode(rawId),
       type: credentialAssertion.type,
       response: {
-        authenticatorData: this.bufferEncode(authData),
-        clientDataJSON: this.bufferEncode(clientDataJSON),
-        signature: this.bufferEncode(sig),
-        userHandle: this.bufferEncode(userHandle)
+        authenticatorData: bufferEncode(authData),
+        clientDataJSON: bufferEncode(clientDataJSON),
+        signature: bufferEncode(sig),
+        userHandle: bufferEncode(userHandle)
       }
     }
   });

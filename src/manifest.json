@@ -2,13 +2,44 @@
   "name": "1Key Browser Extension",
   "description": "Browser extension version of the 1Key app",
   "author": "Let's Authenticate",
-  "version": 3.0,
-  "manifest_version": 2,
+  "version": "1.0.0",
+  "manifest_version": 3,
   "icons": {
     "48": "icons/key_icon.png",
     "128": "icons/key_icon.png"
   },
-  "browser_action": {
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+          "content.js"
+      ]
+    }
+  ],
+  "options_page": "options/options.html",
+  "permissions": [
+    "tabs",
+    "storage",
+    "unlimitedStorage",
+    "idle",
+    "geolocation"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "action": {
     "default_icon": {
       "48": "icons/key_icon.png",
       "128": "icons/key_icon.png"
@@ -16,28 +47,9 @@
     "default_title": "1Key Browser Extension",
     "default_popup": "popup/popup.html"
   },
-  "background": {
-    "scripts": ["background.js"],
-    "persistent": true
-  },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
-    }
-  ],
-  "options_ui": {
-    "page": "options/options.html",
-    "chrome_style": true
-  },
-  "permissions": [
-    "tabs",
-    "storage",
-    "unlimitedStorage",
-    "idle",
+  "host_permissions": [
     "http://*/",
-    "https://*/",
-    "geolocation"
-  ],
-  "web_accessible_resources": ["content.js"]
+    "https://*/"
+  ]
 }
+

@@ -1,4 +1,4 @@
-import Vue from "vue";
+import { createApp } from "vue";
 import App from "./App";
 import router from "./router";
 
@@ -6,10 +6,9 @@ let data = {
   nightMode: false
 };
 
-/* eslint-disable no-new */
-new Vue({
-  el: "#app",
-  router,
-  data,
-  render: h => h(App)
-});
+const app = createApp(App)
+
+app.use(router)
+// app.use(data)
+
+app.mount("#app")

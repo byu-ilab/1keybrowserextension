@@ -13,26 +13,25 @@
           type="text"
           id="username"
           name="username"
+          ref="username"
+          v-model="username"
           @keyup.enter="clickLogin"
           autofocus="autofocus"
-        /><br />
+        />
+        <br />
       </div>
       <div class="field">
         <label for="pin">Pin:</label><br />
-        <div class="keySpecs">
-          Enter a 6 digit pin for this device
-        </div>
-        <input type="password" id="pin" name="pin" /><br />
+        <div class="keySpecs">Enter a 6 digit pin for this device</div>
+        <input type="password" id="pin" name="pin" v-model="pin" /><br />
       </div>
     </form>
 
-    <div class="fail" id="failMessage" v-show="loginFail">
-      Login failed
-    </div>
+    <div class="fail" id="failMessage" v-show="loginFail">Login failed</div>
 
     <button
       type="submit"
-      class="disabledButton"
+      :class="{ disabledButton: isDisabled, loginButton: !isDisabled }"
       id="loginButton"
       @click="loginLetsAuthUser"
     >
@@ -57,22 +56,11 @@
  */
 
 import LoadingIcon from "../components/LoadingIcon.vue";
-import { sendAuthCSRToCA } from "../tools/ServerFacade.js";
-import { storeAuthCert, getAuthCert } from "../tools/CertDatabase.js";
-import {
-  makeCSR,
-  updateAllCertsList,
-  makeKeypass,
-  delay
-} from "../tools/CertGen.js";
-import {
-  getUserInfo,
-  changePasswordInUserDb,
-  checkForRegisteredUser
-} from "../tools/UserDatabase.js";
+import { updateAllCertsList, makeKeypass } from "../tools/CertGen.js";
+import { getUserInfo, checkForRegisteredUser } from "../tools/UserDatabase.js";
 import {
   setLoggedInCredentials,
-  getIndexeddbKey
+  getIndexeddbKey,
 } from "../tools/LocalStorage.js";
 
 export default {
@@ -81,58 +69,40 @@ export default {
     return {
       loginFail: false,
       loading: false,
-      alreadyRegistered: false
+      alreadyRegistered: false,
+      username: "",
+      pin: "",
     };
   },
+  computed: {
+    isDisabled() {
+      return !this.username | !this.pin | this.loading;
+    },
+  },
   components: {
-    LoadingIcon
+    LoadingIcon,
   },
   async created() {
     //change colors to night mode if necessary
-    if (this.$root.$data.nightMode) {
-      let results = await document.getElementsByClassName("field");
-      for (let x = 0; x < results.length; x++) {
-        results[x].style.color = "white";
-      }
-      document.getElementById("username").style.backgroundColor =
-        "var(--n-gray)";
-      document.getElementById("pin").style.backgroundColor = "var(--n-gray)";
-      document.getElementById("username").style.color = "white";
-      document.getElementById("pin").style.color = "white";
-      document.getElementById("forgotPwd").style.color = "white";
-      document.getElementById("failMessage").style.color = "var(--n-fail-red)";
-    }
-
-    var input = document.getElementById("username");
-    input.focus();
-
-    document
-      .getElementById("username")
-      .addEventListener("keyup", function(event) {
-        event.preventDefault();
-        console.log(document.getElementById("loginButton"));
-        if (
-          event.keyCode === 13 &&
-          document.getElementById("loginButton").className == "loginButton"
-        ) {
-          document.getElementById("loginButton").click();
-        }
-      });
-
-    document.getElementById("pin").addEventListener("keyup", function(event) {
-      event.preventDefault();
-      console.log(document.getElementById("loginButton"));
-      if (
-        event.keyCode === 13 &&
-        document.getElementById("loginButton").className == "loginButton"
-      ) {
-        document.getElementById("loginButton").click();
-      }
-    });
+    // if (this.$root.$data.nightMode) {
+    //   let results = await document.getElementsByClassName("field");
+    //   for (let x = 0; x < results.length; x++) {
+    //     results[x].style.color = "white";
+    //   }
+    //   document.getElementById("username").style.backgroundColor =
+    //     "var(--n-gray)";
+    //   document.getElementById("pin").style.backgroundColor = "var(--n-gray)";
+    //   document.getElementById("username").style.color = "white";
+    //   document.getElementById("pin").style.color = "white";
+    //   document.getElementById("forgotPwd").style.color = "white";
+    //   document.getElementById("failMessage").style.color = "var(--n-fail-red)";
+    // }
+    // var input = document.getElementById("username");
+    //this.$refs.username.focus();
   },
   async mounted() {
     //add form listeners to make sure login form is filled correctly before enabling login button
-    this.addFormEventListeners();
+    //this.addFormEventListeners();
     //check if there is a user registered with this browser extension
     this.alreadyRegistered = await checkForRegisteredUser();
   },
@@ -142,22 +112,26 @@ export default {
      */
     async loginLetsAuthUser() {
       this.loading = true;
-      document.getElementById("loginButton").className = "disabledButton";
+      // document.getElementById("loginButton").className = "disabledButton";
 
       //get user input of username and key
-      const pin = document.getElementById("pin").value;
-      const userName = document.getElementById("username").value;
+      //const pin = document.getElementById("pin").value;
+      // const userName = this.username;
+      console.log("checking pin");
 
       //get user info (including keys and authenticator cert) based on inputted key
-      let idbKey = getIndexeddbKey(makeKeypass(pin));
+      let idbKey = getIndexeddbKey(makeKeypass(this.pin));
       if (idbKey) {
         this.userInformation = await getUserInfo(idbKey);
       }
-
+      console.log("pin correct");
       //if password was correct, user information is used for login api
-      if (this.userInformation && this.userInformation.username === userName) {
+      if (
+        this.userInformation &&
+        this.userInformation.username === this.username
+      ) {
         //generate keypass from entered key
-        let keypass = makeKeypass(pin);
+        let keypass = makeKeypass(this.pin);
 
         setLoggedInCredentials(keypass);
 
@@ -166,6 +140,8 @@ export default {
         chrome.storage.local.set({ loggedIn: true });
         this.$router.push("/");
       } else if (!this.alreadyRegistered) {
+        console.log("try new auth");
+
         //no one is registered but user might be trying to register new auth
         this.handleNewAuthRegistration();
       } else {
@@ -181,41 +157,40 @@ export default {
       this.$router.push({
         name: "Register",
         params: {
-          newAuth: true
-        }
+          newAuth: true,
+        },
       });
     },
     /**
      * Add form listeners to ensure all fields are filled before login button is enabled.
      */
-    addFormEventListeners() {
-      document.getElementById("username").addEventListener("input", checkForm);
-      document.getElementById("pin").addEventListener("input", checkForm);
+    // addFormEventListeners() {
+    //   document.getElementById("username").addEventListener("input", checkForm);
+    //   document.getElementById("pin").addEventListener("input", checkForm);
 
-      function checkForm() {
-        console.log(document.getElementById("pin").value);
-        console.log(document.getElementById("username").value);
-        if (
-          document.getElementById("pin").value &&
-          document.getElementById("pin").value.length == 6 &&
-          document.getElementById("username").value
-        ) {
-          document.getElementById("loginButton").className = "loginButton";
-        } else {
-          document.getElementById("loginButton").className = "disabledButton";
-        }
-      }
-    },
-    clickLogin() {
-      if (document.getElementById("loginButton").className == "loginButton")
-        document.getElementById("loginButton").click();
-    },
+    //   function checkForm() {
+    //     if (
+    //       document.getElementById("pin").value &&
+    //       document.getElementById("pin").value.length == 6 &&
+    //       document.getElementById("username").value
+    //     ) {
+    //       document.getElementById("loginButton").className = "loginButton";
+    //     } else {
+    //       document.getElementById("loginButton").className = "disabledButton";
+    //     }
+    //   }
+    // },
+    // clickLogin() {
+    //   if (document.getElementById("loginButton").className == "loginButton")
+    //     document.getElementById("loginButton").click();
+    // },
     /**
      * Called when login fails.
      * Clears form and sets an error message to be displayed in html.
      */
     failLogin() {
-      document.getElementById("loginForm").reset();
+      this.username = "";
+      this.pin = "";
       this.loginFail = true;
       this.loading = false;
     },
@@ -224,8 +199,8 @@ export default {
      */
     navigateBack() {
       this.$router.go(-1);
-    }
-  }
+    },
+  },
 };
 </script>
 

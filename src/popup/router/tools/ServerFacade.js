@@ -10,7 +10,7 @@ import {
   setAuthenticationDataEtag
 } from "./LocalStorage.js";
 
-var hostName = "https://letsauth.org";
+var hostName = "https://api.letsauth.org";
 // var hostName = "http://localhost:3000"; //Use this if you are running the CA locally
 
 /**
@@ -45,10 +45,10 @@ export async function getAuthenticationDataFromCA(
   try {
     let response = await axios.get(
       hostName +
-        "/la0.2/users/" +
-        username +
-        "/data?authenticatorCertificate=" +
-        encodedAuthCert,
+      "/la0.2/users/" +
+      username +
+      "/data?authenticatorCertificate=" +
+      encodedAuthCert,
       {
         headers: headers
       }
@@ -240,6 +240,7 @@ export async function sendLoginToCA(usr, pwd, authCSR) {
  * @returns response if successful or null if error occurs
  */
 export async function sendAuthCSRToCA(usr, authCSR) {
+  console.log("username: ", usr)
   try {
     let response = await axios.post(
       hostName + "/la0.3/users/" + usr + "/sign",

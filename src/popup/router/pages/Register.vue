@@ -26,26 +26,27 @@
       <form id="registerForm" v-if="!alreadyRegistered">
         <div class="field">
           <label for="username">Username:</label><br />
-          <input type="text" id="username" name="username" /><br />
+          <input
+            type="text"
+            id="username"
+            name="username"
+            v-model="username"
+          /><br />
         </div>
 
         <div class="field">
           <label for="name">Device Name:</label><br />
-          <div class="keySpecs">
-            Choose a name to identify this browser.
-          </div>
-          <input type="text" id="name" name="name" /><br />
+          <div class="keySpecs">Choose a name to identify this browser.</div>
+          <input type="text" id="name" name="name" v-model="deviceName" /><br />
         </div>
 
         <div class="field">
           <label for="pin">Pin:</label><br />
-          <div class="keySpecs">
-            Enter a 6 digit pin for this device
-          </div>
-          <input type="password" id="pin" name="pin" /><br />
+          <div class="keySpecs">Enter a 6 digit pin for this device</div>
+          <input type="password" id="pin" name="pin" v-model="pin" /><br />
         </div>
 
-        <div class="field" v-if="newAuthLogin && !AlreadyRegistered">
+        <div class="field" v-if="newAuthLogin && !alreadyRegistered">
           <label for="key">Key:</label><br />
           <div class="keySpecs">
             Enter the key that was given to you when <br />you first created
@@ -53,7 +54,7 @@
             You should have printed this out or saved <br />it on another
             device.
           </div>
-          <input type="text" id="key" name="key" /><br />
+          <input type="text" id="key" name="key" v-model="key" /><br />
         </div>
 
         <div class="fail" id="failMessage" v-show="registerFail">
@@ -62,8 +63,8 @@
       </form>
 
       <div
-        class="disabledButton"
         id="registerButton"
+        :class="{ disabledButton: isDisabled, registerButton: !isDisabled }"
         @click="registerLetsAuthUser"
         v-if="!alreadyRegistered"
       >
@@ -87,34 +88,35 @@
  */
 
 import LoadingIcon from "../components/LoadingIcon.vue";
+
 import {
   storeNewUserInfo,
   getUserInfo,
   clearUserDb,
-  checkForRegisteredUser
+  checkForRegisteredUser,
 } from "../tools/UserDatabase.js";
+
 import {
   makeCSR,
   updateAllCertsList,
   makeKeypass,
   createAuthenticatorData,
   addAuthToAuthenticatorData,
-  generateUniqueIdentifier,
   delay,
-  getSymmetricKeyString
+  getSymmetricKeyString,
 } from "../tools/CertGen.js";
+
+import { sendAuthCSRToCA } from "../tools/ServerFacade.js";
+
 import {
-  sendRegisterToCA,
-  sendLoginToCA,
-  sendAuthCSRToCA
-} from "../tools/ServerFacade.js";
-import {
-  setIndexeddbKey,
   getIndexeddbKey,
   setLoggedInCredentials,
-  clearSecretLocalStorage
+  clearSecretLocalStorage,
 } from "../tools/LocalStorage.js";
+
 import { storeAuthCert } from "../tools/CertDatabase.js";
+import { fido_register } from "../tools/fido.js";
+
 export default {
   name: "Register",
   data() {
@@ -122,11 +124,20 @@ export default {
       registerFail: false,
       alreadyRegistered: false,
       newAuthLogin: false,
-      loading: false
+      loading: false,
+      username: "",
+      deviceName: "",
+      pin: "",
+      key: "",
     };
   },
+  computed: {
+    isDisabled() {
+      return !this.username | !this.pin | this.loading;
+    },
+  },
   components: {
-    LoadingIcon
+    LoadingIcon,
   },
   async created() {
     //checks for the parameter of new authenticator login
@@ -139,97 +150,97 @@ export default {
     this.alreadyRegistered = await checkForRegisteredUser();
 
     //add form listeners to ensure all fields are filled correctly before register button is enabled
-    this.addFormEventListeners();
+    // this.addFormEventListeners();
 
     //change colors to night mode if necessary
-    if (this.$root.$data.nightMode) {
-      let results = await document.getElementsByClassName("field");
-      for (let x = 0; x < results.length; x++) {
-        results[x].style.color = "white";
-      }
-      let inputs = await document.getElementsByTagName("input");
-      for (let x = 0; x < inputs.length; x++) {
-        inputs[x].style.backgroundColor = "var(--n-gray)";
-        inputs[x].style.color = "white";
-      }
+    // if (this.$root.$data.nightMode) {
+    //   let results = await document.getElementsByClassName("field");
+    //   for (let x = 0; x < results.length; x++) {
+    //     results[x].style.color = "white";
+    //   }
+    //   let inputs = await document.getElementsByTagName("input");
+    //   for (let x = 0; x < inputs.length; x++) {
+    //     inputs[x].style.backgroundColor = "var(--n-gray)";
+    //     inputs[x].style.color = "white";
+    //   }
 
-      let messages = await document.getElementsByClassName("registeredMessage");
-      for (let x = 0; x < messages.length; x++) {
-        messages[x].style.color = "white";
-      }
-      document.getElementById("failMessage").style.color = "var(--n-fail-red)";
-    }
+    //   let messages = await document.getElementsByClassName("registeredMessage");
+    //   for (let x = 0; x < messages.length; x++) {
+    //     messages[x].style.color = "white";
+    //   }
+    //   document.getElementById("failMessage").style.color = "var(--n-fail-red)";
+    // }
 
-    document.getElementById("username").focus();
+    // document.getElementById("username").focus();
 
-    document.getElementById("name").addEventListener("keyup", function(event) {
-      event.preventDefault();
-      console.log(document.getElementById("registerButton"));
-      if (
-        event.keyCode === 13 &&
-        document.getElementById("registerButton").className == "registerButton"
-      ) {
-        document.getElementById("registerButton").click();
-      }
-    });
+    // document.getElementById("name").addEventListener("keyup", function (event) {
+    //   event.preventDefault();
+    //   console.log(document.getElementById("registerButton"));
+    //   if (
+    //     event.keyCode === 13 &&
+    //     document.getElementById("registerButton").className == "registerButton"
+    //   ) {
+    //     document.getElementById("registerButton").click();
+    //   }
+    // });
 
-    document
-      .getElementById("username")
-      .addEventListener("keyup", function(event) {
-        event.preventDefault();
-        if (
-          event.keyCode === 13 &&
-          document.getElementById("registerButton").className ==
-            "registerButton"
-        ) {
-          document.getElementById("registerButton").click();
-        }
-      });
+    // document
+    //   .getElementById("username")
+    //   .addEventListener("keyup", function (event) {
+    //     event.preventDefault();
+    //     if (
+    //       event.keyCode === 13 &&
+    //       document.getElementById("registerButton").className ==
+    //         "registerButton"
+    //     ) {
+    //       document.getElementById("registerButton").click();
+    //     }
+    //   });
 
-    document.getElementById("pin").addEventListener("keyup", function(event) {
-      event.preventDefault();
-      if (
-        event.keyCode === 13 &&
-        document.getElementById("registerButton").className == "registerButton"
-      ) {
-        document.getElementById("registerButton").click();
-      }
-    });
+    // document.getElementById("pin").addEventListener("keyup", function (event) {
+    //   event.preventDefault();
+    //   if (
+    //     event.keyCode === 13 &&
+    //     document.getElementById("registerButton").className == "registerButton"
+    //   ) {
+    //     document.getElementById("registerButton").click();
+    //   }
+    // });
   },
   methods: {
     async registerLetsAuthUser() {
       this.loading = true;
-      document.getElementById("registerButton").className = "disabledButton";
+      // document.getElementById("registerButton").className = "disabledButton";
 
-      //get user input from registration form
-      let userName = document.getElementById("username").value;
-      let authName = document.getElementById("name").value;
-      let pin = document.getElementById("pin").value;
       this.registerFail = false;
+      console.log("this.username", this.username);
 
       //get the keystring that will be used as a symmetric key
       let authSymmetricKeyString = "";
       if (this.newAuthLogin && !this.alreadyRegistered) {
-        authSymmetricKeyString = document.getElementById("key").value;
+        authSymmetricKeyString = this.key;
       } else {
         authSymmetricKeyString = getSymmetricKeyString();
       }
-
+      console.log("got key");
       //This is the symmetric key that will be stored in the userInfo and used to decrypt the authentication data
       let authKeypass = makeKeypass(authSymmetricKeyString);
 
       //This is derived from the pin and used to encrypt local storage
-      let indexeddbKeypass = makeKeypass(pin);
+      let indexeddbKeypass = makeKeypass(this.pin);
       let indexeddbKey = getIndexeddbKey(indexeddbKeypass);
 
       //keys are created, keys and user information is stored in user database
       var userInfo = await this.generateAndStoreKeys(
-        userName,
+        this.username,
         authSymmetricKeyString,
-        authName,
+        this.deviceName,
         indexeddbKey
       );
 
+      console.log("generated and stored keys");
+
+      // TBD -- should be using import
       let forge = require("node-forge");
       let publicKeyPem = forge.pki.publicKeyFromPem(userInfo.publicKey);
 
@@ -237,9 +248,12 @@ export default {
       let authCert = makeCSR(
         forge.pki.privateKeyFromPem(userInfo.privateKey),
         publicKeyPem,
-        authName,
+        userInfo.publicKey,
+        this.deviceName,
         "deprecated@email.com" // id@ca.org??
       );
+
+      console.log("generated auth certificate CSR");
 
       //basically the only difference between first time registration
       //and new authenticator registration is api sent to CA
@@ -250,75 +264,143 @@ export default {
         type = "login";
       }
 
-      let hasFinished = false;
-      chrome.windows.create(
+      // setup variables
+      let username = this.username;
+      let deviceName = this.deviceName;
+
+      // DZ -- don't need this any more
+      // let hasFinished = false;
+
+      // DZ -- Currently working on making FIDO2 work directly from the extension. I believe this is now supported. The only change I had to make was to use the extension ID as the RP id. This seems odd, but it appears to work. We need to learn more about FIDO2 and whether this is kosher. We also need to decide we want for the user experience -- authenticating within the extension or opening a window. We also need to look into what is allowed in apps, but I would bet the app can call webauthn. See for example https://stackoverflow.com/questions/67241714/how-to-use-webauthn-with-ios-and-react
+      let result = await fido_register(this.username);
+
+      // DZ -- currently waiting here for 502 bug on server to be resolved
+      console.log(result);
+
+      response = await sendAuthCSRToCA(username, authCert);
+      console.log("got response from CA");
+
+      if (response != null) {
+        //get certificate from CA, save it. This is your authenticator cert for the future!
+        await storeAuthCert(
+          deviceName,
+          response.data.authenticatorCertificate,
+          "1",
+          indexeddbKey
+        );
+
+        console.log("got an auth certificate");
+
+        //loggedIn variable set to true
+        chrome.storage.local.set({ loggedIn: true });
+        setLoggedInCredentials(makeKeypass(this.pin));
+
+        //create or update authenticator data with this device
+        if (!this.newAuthLogin) {
+          await createAuthenticatorData(
+            deviceName,
+            response.data.authenticatorCertificate
+          );
+          console.log("created authenticator data");
+        } else {
+          await addAuthToAuthenticatorData(
+            deviceName,
+            response.data.authenticatorCertificate
+          );
+          console.log("added authenticator data");
+        }
+
+        await updateAllCertsList(indexeddbKey);
+      } else {
+        await this.failRegister();
+        console.log("registration failed");
+      }
+
+      this.loading = false;
+      console.log("win");
+
+      // DZ -- old method here
+      // generate FIDO login window
+      /* chrome.windows.create(
         {
           url:
-            "https://letsauth.org/" +
+            "https://api.letsauth.org/" +
             type +
             "/" +
-            userName +
+            username +
             "?kauth=" +
-            publicKeyPem,
-          type: "popup"
+            // dz bug fix
+            userInfo.publicKey,
+          // publicKeyPem,
+          type: "popup",
         },
-        async function(win) {
+        // TBD: note we don't need a callback here -- could use await since it returns a promise
+        async function (win) {
           //sleep every 5 seconds before trying to get a signed auth cert from the CA
           let response = "";
           while (!response) {
+            // TBD try to find a better way to do this -- we need to wait for the user to authenticate. I believe the FIDO authentication results in a cookie being set so we are waiting for that. Maybe we need to send a temporary secret in the url params above, then send a request asking the server to respond when this secret/session has been authorized. Then send the request, because the cookie should be set.
             await delay(5000);
-            response = await sendAuthCSRToCA(userName, authCert);
+            response = await sendAuthCSRToCA(username, authCert);
           }
+
+          console.log("got response from CA");
 
           if (response != null) {
             //get certificate from CA, save it. This is your authenticator cert for the future!
             await storeAuthCert(
-              authName,
+              deviceName,
               response.data.authenticatorCertificate,
               "1",
               indexeddbKey
             );
 
+            console.log("got an auth certificate");
+
             //loggedIn variable set to true
             chrome.storage.local.set({ loggedIn: true });
-            setLoggedInCredentials(makeKeypass(pin));
+            setLoggedInCredentials(makeKeypass(this.pin));
 
             //create or update authenticator data with this device
             if (!this.newAuthLogin) {
               await createAuthenticatorData(
-                authName,
+                deviceName,
                 response.data.authenticatorCertificate
               );
+              console.log("created authenticator data");
             } else {
               await addAuthToAuthenticatorData(
-                authName,
+                deviceName,
                 response.data.authenticatorCertificate
               );
+              console.log("added authenticator data");
             }
 
             await updateAllCertsList(indexeddbKey);
           } else {
             await this.failRegister();
+            console.log("registration failed");
           }
 
           this.loading = false;
           console.log("win");
-          console.log(win);
+          //console.log(win);
           //chrome.windows.remove(win.id);
           hasFinished = true;
         }
-      );
+      ); 
 
+      // TBD see if there is a cleaner way to do this
       while (!hasFinished) {
         await delay(1000);
-      }
+      }*/
       console.log("authSymmetricKeyString");
       console.log(authSymmetricKeyString);
       console.log(this.newAuthLogin);
       if (!this.newAuthLogin) {
         this.$router.push({
           name: "SecurityPreparation",
-          params: { key: authSymmetricKeyString }
+          params: { key: authSymmetricKeyString },
         });
       } else {
         this.$router.push("/");
@@ -349,9 +431,9 @@ export default {
       await storeNewUserInfo(
         pemPrivate,
         pemPublic,
-        username,
+        this.username,
         makeKeypass(symmetricKeyString),
-        authname,
+        this.deviceName,
         idbKey
       );
 
@@ -362,40 +444,40 @@ export default {
     /**
      * Adds form event listeners that ensure all fields are filled correctly before register button is enabled.
      */
-    addFormEventListeners() {
-      let callback = this.newAuthLogin ? checkFormNewAuth : checkForm;
-      document.getElementById("username").addEventListener("input", callback);
-      document.getElementById("name").addEventListener("input", callback);
-      document.getElementById("pin").addEventListener("input", callback);
+    // addFormEventListeners() {
+    //   let callback = this.newAuthLogin ? checkFormNewAuth : checkForm;
+    //   document.getElementById("username").addEventListener("input", callback);
+    //   document.getElementById("name").addEventListener("input", callback);
+    //   document.getElementById("pin").addEventListener("input", callback);
 
-      function checkForm() {
-        if (
-          document.getElementById("username").value &&
-          document.getElementById("name").value &&
-          document.getElementById("pin").value &&
-          document.getElementById("pin").value.length == 6
-        ) {
-          document.getElementById("registerButton").className =
-            "registerButton";
-        } else {
-          document.getElementById("registerButton").className =
-            "disabledButton";
-        }
-      }
+    //   function checkForm() {
+    //     if (
+    //       document.getElementById("username").value &&
+    //       document.getElementById("name").value &&
+    //       document.getElementById("pin").value &&
+    //       document.getElementById("pin").value.length == 6
+    //     ) {
+    //       document.getElementById("registerButton").className =
+    //         "registerButton";
+    //     } else {
+    //       document.getElementById("registerButton").className =
+    //         "disabledButton";
+    //     }
+    //   }
 
-      function checkFormNewAuth() {
-        if (
-          document.getElementById("username").value &&
-          document.getElementById("name").value
-        ) {
-          document.getElementById("registerButton").className =
-            "registerButton";
-        } else {
-          document.getElementById("registerButton").className =
-            "disabledButton";
-        }
-      }
-    },
+    //   function checkFormNewAuth() {
+    //     if (
+    //       document.getElementById("username").value &&
+    //       document.getElementById("name").value
+    //     ) {
+    //       document.getElementById("registerButton").className =
+    //         "registerButton";
+    //     } else {
+    //       document.getElementById("registerButton").className =
+    //         "disabledButton";
+    //     }
+    //   }
+    // },
     /**
      * Navigates back to previous page. Used for back arrow.
      */
@@ -410,10 +492,14 @@ export default {
     async failRegister() {
       await clearUserDb();
       clearSecretLocalStorage();
-      document.getElementById("registerForm").reset();
+      // document.getElementById("registerForm").reset();
+      this.username = "";
+      this.pin = "";
+      this.deviceName = "";
+      this.key = "";
       this.registerFail = true;
-    }
-  }
+    },
+  },
 };
 </script>
 

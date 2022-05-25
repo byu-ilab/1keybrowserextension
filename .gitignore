@@ -9,3 +9,5 @@
 .history
 .svn/
 **/node_modules
+*~
+dist/

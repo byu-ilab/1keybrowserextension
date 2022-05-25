@@ -63,32 +63,32 @@ chrome.storage.onChanged.addListener(function(changes, namespace) {
         chrome.storage.local.get("loggedIn", async function(data) {
           if (data.loggedIn && !(await getSignInSetting())) {
             //NO auto sign in - show notification that there is a pending request
-            chrome.browserAction.setBadgeText({
+            chrome.action.setBadgeText({
               text: "1"
             });
-            chrome.browserAction.setBadgeBackgroundColor({
+            chrome.action.setBadgeBackgroundColor({
               color: "#FF0000"
             });
           } else if (data.loggedIn) {
             //green badge indicates actively signing in (for auto sign-in)
-            chrome.browserAction.setBadgeBackgroundColor({
+            chrome.action.setBadgeBackgroundColor({
               color: "#00B300"
             });
-            chrome.browserAction.setBadgeText({
+            chrome.action.setBadgeText({
               text: " "
             });
             //YES auto sign in - perform sign in
             await Request.methods.backgroundRequest();
 
             //turn off green badge once sign in is complete
-            chrome.browserAction.setBadgeText({
+            chrome.action.setBadgeText({
               text: ""
             });
           }
         });
       } else {
         //Request canceled or something so there is NO badge
-        chrome.browserAction.setBadgeText({
+        chrome.action.setBadgeText({
           text: ""
         });
       }
@@ -120,7 +120,7 @@ chrome.storage.onChanged.addListener(function(changes, namespace) {
 chrome.windows.onRemoved.addListener(function() {
   chrome.windows.getAll(function(windows) {
     if (windows.length <= 0) {
-      chrome.browserAction.setBadgeText({
+      chrome.action.setBadgeText({
         text: ""
       });
       Main.methods.logoutLetsAuthUser();
