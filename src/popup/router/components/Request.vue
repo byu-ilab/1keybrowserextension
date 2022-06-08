@@ -90,10 +90,12 @@ import {
   makeCertificate,
   signString,
   addAccountToAuthenticatorData,
-  addSessionToAuthenticatorData,
   updateAllCertsList,
   renewAccountCert
 } from "../tools/CertGen.js";
+import {
+  addSessionToAuthenticatorData
+} from "../tools/CertSession.js"
 import {
   getLoginObject,
   getLoginObjectSignature,

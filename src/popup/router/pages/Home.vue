@@ -26,21 +26,15 @@
           REGISTER
         </div>
 
-        <div
-          class="homeButton"
-          @click="
-            () =>
-              this.$router.push({
-                name: 'Register',
-                params: { newAuth: true }
-              })
-          "
-        >
+        <!-- <div class="homeButton" @click="() => this.$router.push({name: 'Register', params: { newAuth: true }})"> -->
+        <div class="homeButton" @click="() => this.$router.push('/newdevice')">
           <img id="compIcon" src="../../../icons/computer.png" class="logo" />
           NEW DEVICE
         </div>
       </div>
     </div>
+
+    <button @click="clearDatabase()">Dev Refresh</button>
 
     <div class="credits">
       Icons made by
@@ -73,6 +67,12 @@ export default {
       document.getElementById("regIcon").src = "../../../icons/add_white.png";
       document.getElementById("compIcon").src =
         "../../../icons/computer_white.png";
+    }
+  },
+  methods: {
+    clearDatabase() {
+      //put in api call to CA to clear it's database OR have it clear one user
+      console.log("Clearing Database");
     }
   }
 };

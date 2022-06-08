@@ -28,7 +28,8 @@ export async function fido_register(username_register, csr) {
   let credentialCreationOptions = register_start_response.data;
   console.log("Register begin - response recieved", register_start_response);
   console.log("Cred creation options", credentialCreationOptions);
-  credentialCreationOptions.publicKey.rp.id = 'jlaemolljfgeadmkmkcefgioohlkcbhb';
+  //credentialCreationOptions.publicKey.rp.id = 'jlaemolljfgeadmkmkcefgioohlkcbhb';
+  credentialCreationOptions.publicKey.rp.id = chrome.runtime.id;
   credentialCreationOptions.publicKey.challenge = bufferDecode(
     credentialCreationOptions.publicKey.challenge
   );
@@ -36,20 +37,14 @@ export async function fido_register(username_register, csr) {
     credentialCreationOptions.publicKey.user.id
   );
   if (credentialCreationOptions.publicKey.excludeCredentials) {
-    for (
-      var i = 0;
-      i < credentialCreationOptions.publicKey.excludeCredentials.length;
-      i++
-    ) {
-      credentialCreationOptions.publicKey.excludeCredentials[
-        i
-      ].id = bufferDecode(
-        credentialCreationOptions.publicKey.excludeCredentials[i].id
-      );
+    for (var i = 0; i < credentialCreationOptions.publicKey.excludeCredentials.length; i++) {
+      credentialCreationOptions.publicKey.excludeCredentials[i].id =
+      bufferDecode(credentialCreationOptions.publicKey.excludeCredentials[i].id);
     }
   }
   //Asks users to create credention on Yubikey or Software app
   console.log("Asking user for credential");
+  console.log(window.isSecureContext);
   const credential = await navigator.credentials.create({
     publicKey: credentialCreationOptions.publicKey
   });

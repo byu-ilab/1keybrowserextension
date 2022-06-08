@@ -70,8 +70,8 @@ import {
   updateAllCertsList,
   getLoggedInDevices,
   getAccountCert,
-  removeSessionFromAuthData,
-  removeDeviceSessionsFromAuthData
+  removeSessionFromAuthData
+  // removeDeviceSessionsFromAuthData
 } from "../tools/CertGen.js";
 import { getUserInfo } from "../tools/UserDatabase.js";
 export default {

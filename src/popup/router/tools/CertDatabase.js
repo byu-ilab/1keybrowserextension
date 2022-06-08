@@ -13,7 +13,7 @@
  * If this authenticator owns a certificate for an account it also stores that service certificate and associated service keypair.
  */
 
-import { getCertificateExpirationTime } from "./CertGen.js";
+import { getCertificateExpirationTime } from "./CertSession.js";
 import { getIndexeddbKey, getLoggedInCredentials } from "./LocalStorage.js";
 import Dexie from "dexie";
 import { applyEncryptionMiddleware, cryptoOptions } from "dexie-encrypted";

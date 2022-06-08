@@ -1,15 +1,15 @@
 <template>
-  <div class="register">
+  <div class="newDevice">
     <div class="spinnerContainer" v-show="loading"><LoadingIcon /></div>
 
     <div class="header">
       <img src="../../../icons/left-arrow.png" @click="navigateBack" />
-      Register
+      Add Device
     </div>
 
     <div class="form-and-button">
-      <div v-if="!newDeviceLogin && !alreadyRegistered" class="yubikey-prompt">
-        Have your YubiKey ready for registration.
+      <div v-if="!alreadyRegistered" class="yubikey-prompt">
+        Have your YubiKey ready for adding a new device.
         <br />
         This might take a little bit.
       </div>
@@ -26,27 +26,26 @@
       <form id="registerForm" v-if="!alreadyRegistered">
         <div class="field">
           <label for="username">Username:</label><br />
-          <input
-            type="text"
-            id="username"
-            name="username"
-            v-model="username"
-          /><br />
+          <input type="text" id="username" name="username" v-model="username"/>
+          <br />
         </div>
 
         <div class="field">
           <label for="name">Device Name:</label><br />
           <div class="keySpecs">Choose a name to identify this browser.</div>
-          <input type="text" id="name" name="name" v-model="deviceName" /><br />
+          <input type="text" id="name" name="name" v-model="deviceName" />
+          <br />
         </div>
 
         <div class="field">
           <label for="pin">Pin:</label><br />
           <div class="keySpecs">Enter a 6 digit pin for this device</div>
-          <input type="password" id="pin" name="pin" v-model="pin" /><br />
+          <input type="password" id="pin" name="pin" v-model="pin" />
+          <br />
         </div>
 
-        <div class="field" v-if="newDeviceLogin && !alreadyRegistered">
+        <!-- <div class="field" v-if="newDeviceLogin && !alreadyRegistered"> -->
+        <div class="field">
           <label for="key">Key:</label><br />
           <div class="keySpecs">
             Enter the key that was given to you when <br />you first created
@@ -58,17 +57,12 @@
         </div>
 
         <div class="fail" id="failMessage" v-show="registerFail">
-          Registration failed.
+          Adding Device failed.
         </div>
       </form>
 
-      <div
-        id="registerButton"
-        :class="{ disabledButton: isDisabled, registerButton: !isDisabled }"
-        @click="registerLetsAuthUser"
-        v-if="!alreadyRegistered"
-      >
-        Register
+      <div id="registerButton" :class="{ disabledButton: isDisabled, registerButton: !isDisabled }" @click="registerLetsAuthUser" v-if="!alreadyRegistered">
+        Add Device
       </div>
 
       <div class="registeredMessage" v-show="alreadyRegistered">
@@ -123,7 +117,7 @@ export default {
     return {
       registerFail: false,
       alreadyRegistered: false,
-      newDeviceLogin: false,
+      // newDeviceLogin: false,
       loading: false,
       username: "",
       deviceName: "",
@@ -133,7 +127,7 @@ export default {
   },
   computed: {
     isDisabled() {
-      return !this.username | (this.pin.length < 6) | this.loading;
+      return !this.username | !this.pin | this.loading;
     },
   },
   components: {
@@ -142,9 +136,9 @@ export default {
   async created() {
     //checks for the parameter of new authenticator login
     //changes message and CA api used for new authenticator login
-    if (this.$route.params.newAuth) {
-      this.newDeviceLogin = true;
-    }
+    // if (this.$route.params.newAuth) {
+    //   this.newDeviceLogin = true;
+    // }
 
     //verifies whether or not authenticator has been previously registered
     this.alreadyRegistered = await checkForRegisteredUser();
@@ -217,11 +211,11 @@ export default {
 
       //get the keystring that will be used as a symmetric key
       let authSymmetricKeyString = "";
-      if (this.newDeviceLogin && !this.alreadyRegistered) {
+      // if (this.newDeviceLogin && !this.alreadyRegistered) {
         authSymmetricKeyString = this.key;
-      } else {
-        authSymmetricKeyString = getSymmetricKeyString();
-      }
+      // } else {
+      //   authSymmetricKeyString = getSymmetricKeyString();
+      // }
       console.log("got key");
       //This is the symmetric key that will be stored in the userInfo and used to decrypt the authentication data
       let authKeypass = makeKeypass(authSymmetricKeyString);
@@ -257,12 +251,12 @@ export default {
 
       //basically the only difference between first time registration
       //and new authenticator registration is api sent to CA
-      let type = "";
-      if (!this.newDeviceLogin) {
-        type = "register";
-      } else {
-        type = "login";
-      }
+      // let type = "";
+      // if (!this.newDeviceLogin) {
+        // type = "register";
+      // } else {
+      //   type = "login";
+      // }
 
       // setup variables
       let username = this.username;
@@ -296,19 +290,19 @@ export default {
         setLoggedInCredentials(makeKeypass(this.pin));
 
         //create or update authenticator data with this device
-        if (!this.newDeviceLogin) {
-          await createAuthenticatorData(
-            deviceName,
-            response.data.authenticatorCertificate
-          );
-          console.log("created authenticator data");
-        } else {
+        // if (!this.newDeviceLogin) {
+        //   await createAuthenticatorData(
+        //     deviceName,
+        //     response.data.authenticatorCertificate
+        //   );
+        //   console.log("created authenticator data");
+        // } else {
           await addAuthToAuthenticatorData(
             deviceName,
             response.data.authenticatorCertificate
           );
           console.log("added authenticator data");
-        }
+        // }
 
         await updateAllCertsList(indexeddbKey);
       } else {
@@ -396,15 +390,15 @@ export default {
       }*/
       console.log("authSymmetricKeyString");
       console.log(authSymmetricKeyString);
-      console.log(this.newDeviceLogin);
-      if (!this.newDeviceLogin) {
-        this.$router.push({
-          name: "SecurityPreparation",
-          params: { key: authSymmetricKeyString },
-        });
-      } else {
+      // console.log(this.newDeviceLogin);
+      // if (!this.newDeviceLogin) {
+      //   this.$router.push({
+      //     name: "SecurityPreparation",
+      //     params: { key: authSymmetricKeyString },
+      //   });
+      // } else {
         this.$router.push("/");
-      }
+      // }
     },
     /**
      * Generates the public/private keypair for this authenticator
@@ -504,7 +498,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.register {
+.newDevice {
   width: 360px;
   height: 420px;
   display: flex;
@@ -619,17 +613,17 @@ form .fail {
   text-align: center;
 }
 
-.registeredMessage {
-  color: #165663;
-  font-weight: bold;
-  font-size: 12px;
-  padding: 10px 10px 5px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
+// .registeredMessage {
+//   color: #165663;
+//   font-weight: bold;
+//   font-size: 12px;
+//   padding: 10px 10px 5px 10px;
+//   display: flex;
+//   flex-direction: column;
+//   align-items: center;
+//   justify-content: center;
+//   text-align: center;
+// }
 
 .registeredMessage img {
   margin-top: 100px;

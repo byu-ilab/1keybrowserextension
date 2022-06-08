@@ -9,15 +9,7 @@
     <form id="loginForm">
       <div class="field">
         <label for="username">Username:</label><br />
-        <input
-          type="text"
-          id="username"
-          name="username"
-          ref="username"
-          v-model="username"
-          @keyup.enter="clickLogin"
-          autofocus="autofocus"
-        />
+        <input type="text" id="username" name="username" ref="username" v-model="username" @keyup.enter="clickLogin" autofocus="autofocus"/>
         <br />
       </div>
       <div class="field">
@@ -29,21 +21,11 @@
 
     <div class="fail" id="failMessage" v-show="loginFail">Login failed</div>
 
-    <button
-      type="submit"
-      :class="{ disabledButton: isDisabled, loginButton: !isDisabled }"
-      id="loginButton"
-      @click="loginLetsAuthUser"
-    >
+    <button type="submit" :class="{ disabledButton: isDisabled, loginButton: !isDisabled }" id="loginButton" @click="loginLetsAuthUser">
       Login
     </button>
 
-    <router-link
-      id="forgotPwd"
-      to="/forgotPassword"
-      class="forgotPassword"
-      v-show="alreadyRegistered"
-    >
+    <router-link id="forgotPwd" to="/forgotPassword" class="forgotPassword" v-show="alreadyRegistered">
       Forgot Password?
     </router-link>
   </div>
@@ -76,7 +58,7 @@ export default {
   },
   computed: {
     isDisabled() {
-      return !this.username | !this.pin | this.loading;
+      return !this.username | (this.pin.length < 6) | this.loading;
     },
   },
   components: {
@@ -121,15 +103,14 @@ export default {
 
       //get user info (including keys and authenticator cert) based on inputted key
       let idbKey = getIndexeddbKey(makeKeypass(this.pin));
+      console.log(idbKey);
       if (idbKey) {
+        console.log("entered");
         this.userInformation = await getUserInfo(idbKey);
       }
       console.log("pin correct");
       //if password was correct, user information is used for login api
-      if (
-        this.userInformation &&
-        this.userInformation.username === this.username
-      ) {
+      if (this.userInformation && this.userInformation.username === this.username) {
         console.log("got user information");
         //generate keypass from entered key
         let keypass = makeKeypass(this.pin);
@@ -143,10 +124,10 @@ export default {
         chrome.storage.local.set({ loggedIn: true });
         this.$router.push("/");
       } else if (!this.alreadyRegistered) {
-        console.log("try new auth");
+        console.log("try adding a new device");
 
         //no one is registered but user might be trying to register new auth
-        this.handleNewAuthRegistration();
+        this.handleNewDeviceRegistration();
       } else {
         //someone is registered so incorrect credentials were given
         console.log("failed login");
@@ -157,12 +138,9 @@ export default {
      * If no one is registered with this browser but user is attempting to login,
      * send them to the register page to register this browser as a new authenticator.
      */
-    async handleNewAuthRegistration() {
+    async handleNewDeviceRegistration() {
       this.$router.push({
-        name: "Register",
-        params: {
-          newAuth: true,
-        },
+        name: "New Device"
       });
     },
     /**

@@ -1,5 +1,6 @@
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import NewDevice from "./pages/NewDevice"; //ADDED
 import ForgotPassword from "./pages/ForgotPassword";
 import Home from "./pages/Home";
 import SecurityPreparation from "./pages/SecurityPreparation";
@@ -22,6 +23,12 @@ export default [
     path: "/register",
     name: "Register",
     component: Register,
+    props: true
+  },
+  { //ADDED
+    path: "/newdevice",
+    name: "New Device",
+    component: NewDevice,
     props: true
   },
   {
