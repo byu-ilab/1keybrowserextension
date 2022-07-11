@@ -19,7 +19,8 @@ export function bufferEncode(value) {
 export async function fido_register(username_register, csr) {
   const register_start_response = await axios({
     method: "get",
-    url: `https://api.letsauth.org/la0.3/register/begin/${username_register}`,
+    // url: `https://api.letsauth.org/la0.3/register/begin/${username_register}`,
+    url: `http://localhost:3060/la3/account/create-begin/${username_register}`,
     data: {
       CSR: csr
     }
@@ -28,8 +29,12 @@ export async function fido_register(username_register, csr) {
   let credentialCreationOptions = register_start_response.data;
   console.log("Register begin - response recieved", register_start_response);
   console.log("Cred creation options", credentialCreationOptions);
-  //credentialCreationOptions.publicKey.rp.id = 'jlaemolljfgeadmkmkcefgioohlkcbhb';
+  
+  // TBD -- ideally we wouldn't need to do this
   credentialCreationOptions.publicKey.rp.id = chrome.runtime.id;
+  // credentialCreationOptions.publicKey.rp.id = "letsauth.org"
+  // delete credentialCreationOptions.publicKey.rp.id
+
   credentialCreationOptions.publicKey.challenge = bufferDecode(
     credentialCreationOptions.publicKey.challenge
   );
@@ -56,7 +61,8 @@ export async function fido_register(username_register, csr) {
   //Send signed info with public key
   const register_finish_response = await axios({
     method: "post",
-    url: `https://api.letsauth.org/la0.3/register/finish/${username_register}`,
+    // url: `https://api.letsauth.org/la0.3/register/finish/${username_register}`,
+    url: `http://localhost:3060/la3/account/create-finish/${username_register}`,
     data: {
       id: credential.id,
       rawId: bufferEncode(rawId),

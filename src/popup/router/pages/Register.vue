@@ -1,80 +1,80 @@
 <template>
   <div class="register">
-    <div class="spinnerContainer" v-show="loading"><LoadingIcon /></div>
-
     <div class="header">
       <img src="../../../icons/left-arrow.png" @click="navigateBack" />
-      Register
+      Create an Account
     </div>
 
-    <div class="form-and-button">
-      <div v-if="!newDeviceLogin && !alreadyRegistered" class="yubikey-prompt">
-        Have your YubiKey ready for registration.
-        <br />
-        This might take a little bit.
-      </div>
-
-      <!-- <div class="registeredMessage" v-show="newDeviceLogin && !alreadyRegistered">
-        To register this browser, enter your 1Key account information and a new
-        name for this browser.
-        <br />
-        Have your YubiKey ready for registration.
-        <br />
-        This might take a little bit.
-      </div> -->
-
-      <form id="registerForm" v-if="!alreadyRegistered">
-        <div class="field">
-          <label for="username">Username:</label><br />
-          <input
-            type="text"
-            id="username"
-            name="username"
-            v-model="username"
-          /><br />
+    <div v-if="step == 1">
+      <div class="form-and-button" >
+        <div class="yubikey-prompt">
+          Step 1
         </div>
 
-        <div class="field">
-          <label for="name">Device Name:</label><br />
-          <div class="keySpecs">Choose a name to identify this browser.</div>
-          <input type="text" id="name" name="name" v-model="deviceName" /><br />
-        </div>
-
-        <div class="field">
-          <label for="pin">Pin:</label><br />
-          <div class="keySpecs">Enter a 6 digit pin for this device</div>
-          <input type="password" id="pin" name="pin" v-model="pin" /><br />
-        </div>
-
-        <div class="field" v-if="newDeviceLogin && !alreadyRegistered">
-          <label for="key">Key:</label><br />
-          <div class="keySpecs">
-            Enter the key that was given to you when <br />you first created
-            your 1Key account.<br />
-            You should have printed this out or saved <br />it on another
-            device.
+        <form id="registerForm">
+          <div class="field">
+            <label for="username">Username:</label><br />
+              <div class="keySpecs">Choose a username for your account. This must be at least 2 characters.</div>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              v-model="username"
+            /><br />
           </div>
-          <input type="text" id="key" name="key" v-model="key" /><br />
-        </div>
 
-        <div class="fail" id="failMessage" v-show="registerFail">
-          Registration failed.
-        </div>
-      </form>
+          <div class="field">
+            <label for="name">Computer Name:</label><br />
+            <div class="keySpecs">Choose a name to identify this computer. This will help you to know which computers you are using to login to your accounts.</div>
+            <input type="text" id="name" name="name" v-model="deviceName" /><br />
+          </div>
 
-      <div
-        id="registerButton"
-        :class="{ disabledButton: isDisabled, registerButton: !isDisabled }"
-        @click="registerLetsAuthUser"
-        v-if="!alreadyRegistered"
-      >
-        Register
+          <div class="field">
+            <label for="pin">Pin:</label><br />
+            <div class="keySpecs">Enter a 6 digit pin for this device. This is used to encrypt your keys so nobody else can login to your accounts with this device.</div>
+            <input type="password" id="pin" name="pin" v-model="pin" /><br />
+          </div>
+
+          <!-- <div class="field" v-if="newDeviceLogin && !alreadyRegistered">
+            <label for="key">Key:</label><br />
+            <div class="keySpecs">
+              Enter the key that was given to you when <br />you first created
+              your 1Key account.<br />
+              You should have printed this out or saved <br />it on another
+              device.
+            </div>
+            <input type="text" id="key" name="key" v-model="key" /><br />
+          </div> -->
+
+          <div class="fail" id="failMessage" v-show="registerFail">
+            Registration failed. {errorMessage}
+          </div>
+        </form>
+
+        <div class="keySPecs">This will open a new browser tab so you can complete registration of your account. Once you
+          are done, come back to this window.</div>
+
+        <div
+          id="registerButton"
+          :class="{ disabledButton: isDisabled, registerButton: !isDisabled }"
+          @click="registerStep1"
+        >
+          Create Account
+        </div>
       </div>
+    </div>
+    <div v-if="step == 2">
+      <div class="form-and-button" >
+         <div class="keySPecs"><p>Click this button after you have created your account with letsauth.org.
+           This will authorize the browser extension to access your account.</p></div>
 
-      <div class="registeredMessage" v-show="alreadyRegistered">
-        This browser is already registered. No additional accounts may be linked
-        to this 1Key browser extension.
-        <img src="../../../icons/key_icon.png" width="80px" height="80px" />
+        <div
+          id="nextButton"
+          class="registerButton"
+          @click="registerStep2"
+        >
+          Authorize Browser Extension
+        </div>
       </div>
     </div>
   </div>
@@ -84,10 +84,10 @@
 /**
  * Register.vue
  * Contains registration form and process for registering a new Let's Authenticate account
- * or registering a new device (this browser) on a pre-existing account.
  */
 
-import LoadingIcon from "../components/LoadingIcon.vue";
+var forge = require('node-forge');
+
 
 import {
   storeNewUserInfo,
@@ -115,20 +115,28 @@ import {
 } from "../tools/LocalStorage.js";
 
 import { storeAuthCert } from "../tools/CertDatabase.js";
-import { fido_register } from "../tools/fido.js";
 
+
+// DZ -- We should have some workflow where the state in the DB tells us whether the user has registered this browser or not.
+// If not registered, we need to guide them to create an account or add this device to an existing account. If registered but
+// logged out, guide them to the Login screen. These views then need to check that the user has not somehow accidentally gotten
+// to the wrong view.
+
+// To make all that work, we probably need to store some state to indicate whether the account was actually created. And
+// if they don't know the right PIN, let them clear everything and start over.
+
+// We probably also need some logic in the CA to wipe out an account that was "partially created" state.
 export default {
   name: "Register",
   data() {
     return {
+      step: 1,
+      errorMessage: "",
       registerFail: false,
-      alreadyRegistered: false,
-      newDeviceLogin: false,
-      loading: false,
       username: "",
       deviceName: "",
       pin: "",
-      key: "",
+      userInfo: null,
     };
   },
   computed: {
@@ -136,102 +144,30 @@ export default {
       return !this.username | (this.pin.length < 6) | this.loading;
     },
   },
-  components: {
-    LoadingIcon,
-  },
   async created() {
-    //checks for the parameter of new authenticator login
-    //changes message and CA api used for new authenticator login
-    if (this.$route.params.newAuth) {
-      this.newDeviceLogin = true;
-    }
-
     //verifies whether or not authenticator has been previously registered
     this.alreadyRegistered = await checkForRegisteredUser();
-
-    //add form listeners to ensure all fields are filled correctly before register button is enabled
-    // this.addFormEventListeners();
-
-    //change colors to night mode if necessary
-    // if (this.$root.$data.nightMode) {
-    //   let results = await document.getElementsByClassName("field");
-    //   for (let x = 0; x < results.length; x++) {
-    //     results[x].style.color = "white";
-    //   }
-    //   let inputs = await document.getElementsByTagName("input");
-    //   for (let x = 0; x < inputs.length; x++) {
-    //     inputs[x].style.backgroundColor = "var(--n-gray)";
-    //     inputs[x].style.color = "white";
-    //   }
-
-    //   let messages = await document.getElementsByClassName("registeredMessage");
-    //   for (let x = 0; x < messages.length; x++) {
-    //     messages[x].style.color = "white";
-    //   }
-    //   document.getElementById("failMessage").style.color = "var(--n-fail-red)";
-    // }
-
-    // document.getElementById("username").focus();
-
-    // document.getElementById("name").addEventListener("keyup", function (event) {
-    //   event.preventDefault();
-    //   console.log(document.getElementById("registerButton"));
-    //   if (
-    //     event.keyCode === 13 &&
-    //     document.getElementById("registerButton").className == "registerButton"
-    //   ) {
-    //     document.getElementById("registerButton").click();
-    //   }
-    // });
-
-    // document
-    //   .getElementById("username")
-    //   .addEventListener("keyup", function (event) {
-    //     event.preventDefault();
-    //     if (
-    //       event.keyCode === 13 &&
-    //       document.getElementById("registerButton").className ==
-    //         "registerButton"
-    //     ) {
-    //       document.getElementById("registerButton").click();
-    //     }
-    //   });
-
-    // document.getElementById("pin").addEventListener("keyup", function (event) {
-    //   event.preventDefault();
-    //   if (
-    //     event.keyCode === 13 &&
-    //     document.getElementById("registerButton").className == "registerButton"
-    //   ) {
-    //     document.getElementById("registerButton").click();
-    //   }
-    // });
   },
   methods: {
-    async registerLetsAuthUser() {
-      this.loading = true;
-      // document.getElementById("registerButton").className = "disabledButton";
-
-      this.registerFail = false;
-      console.log("this.username", this.username);
-
-      //get the keystring that will be used as a symmetric key
-      let authSymmetricKeyString = "";
-      if (this.newDeviceLogin && !this.alreadyRegistered) {
-        authSymmetricKeyString = this.key;
-      } else {
-        authSymmetricKeyString = getSymmetricKeyString();
+    async registerStep1() {
+      if (this.isDisabled) {
+        return
       }
-      console.log("got key");
-      //This is the symmetric key that will be stored in the userInfo and used to decrypt the authentication data
-      let authKeypass = makeKeypass(authSymmetricKeyString);
+      this.registerFail = false;
+
+      // This is the symmetric key that will be stored in the userInfo and used to decrypt the authentication data
+      // DZ come back to this -- we need to be creating a new, random symmetric key, not deriving it from a password or anything else
+      // let authKeypass = makeKeypass(authSymmetricKeyString);
+      let authSymmetricKeyString = "dummyfornow";
 
       //This is derived from the pin and used to encrypt local storage
+      // DZ need to verify that we are using the PIN to derive a key and encrypt storage with this. Not clear if this is
+      // currently implemented (correctly).
       let indexeddbKeypass = makeKeypass(this.pin);
       let indexeddbKey = getIndexeddbKey(indexeddbKeypass);
 
       //keys are created, keys and user information is stored in user database
-      var userInfo = await this.generateAndStoreKeys(
+      this.userInfo = await this.generateAndStoreKeys(
         this.username,
         authSymmetricKeyString,
         this.deviceName,
@@ -240,171 +176,93 @@ export default {
 
       console.log("generated and stored keys");
 
-      // TBD -- should be using import
-      let forge = require("node-forge");
-      let publicKeyPem = forge.pki.publicKeyFromPem(userInfo.publicKey);
+      // get the authenticator public key from the user info -- and need to convert them back from PEM
+      let authPublicKey = forge.pki.publicKeyFromPem(this.userInfo.publicKey);
 
-      //authenticator certificate generated for the CA register api call
-      let authCert = makeCSR(
-        forge.pki.privateKeyFromPem(userInfo.privateKey),
-        publicKeyPem,
-        userInfo.publicKey,
-        this.deviceName,
-        "deprecated@email.com" // id@ca.org??
+      // DZ we need to add this localhost:8000 to a "debug" vs "production" setting somewhere
+      // This opens a new browser tab so the user can create their account with the CA. Once they are done, they can
+      // move on to step 2. Note we need to send the username and the authPublicKey so that the user, once their account is
+      // created, have authorized authPublicKey to be valid for their account.
+      await chrome.tabs.create(
+        {
+          url:
+            "http://localhost:8080/register/" +
+            this.username +
+            "?authPublicKey=" +
+            authPublicKey
+        });
+
+      // DZ we are going to need to wait for registration to be done, which is controlled by the user. So we are now done and wait for the user to advance in step 2.
+      this.step = 2
+    },
+    async registerStep2() {
+      // get the authenticator keys from the user info -- and need to convert them back from PEM
+      let authPublicKey = forge.pki.publicKeyFromPem(this.userInfo.publicKey);
+      let authPrivateKey = forge.pki.privateKeyFromPem(this.userInfo.privateKey);
+
+      //This is derived from the pin and used to encrypt local storage
+      // DZ need to verify that we are using the PIN to derive a key and encrypt storage with this. Not clear if this is
+      // currently implemented (correctly).
+      let indexeddbKeypass = makeKeypass(this.pin);
+      let indexeddbKey = getIndexeddbKey(indexeddbKeypass);
+      
+      // TBD -- see note above
+      let authSymmetricKeyString = "dummyfornow";
+
+      // create the authenticator CSR
+      let csr = makeCSR(
+        authPrivateKey,
+        authPublicKey,
+        this.username,
+        this.username + "@letsauth.org" // id@ca.org??
       );
 
-      console.log("generated auth certificate CSR");
+      console.log("generated authenticator CSR");
 
-      //basically the only difference between first time registration
-      //and new authenticator registration is api sent to CA
-      let type = "";
-      if (!this.newDeviceLogin) {
-        type = "register";
-      } else {
-        type = "login";
-      }
+      // send the CSR to the CA
+      let response = await sendAuthCSRToCA(this.username, csr);
+      console.log("got response from CA", response);
 
-      // setup variables
-      let username = this.username;
-      let deviceName = this.deviceName;
-
-      // DZ -- don't need this any more
-      // let hasFinished = false;
-
-      // DZ -- Currently working on making FIDO2 work directly from the extension. I believe this is now supported. The only change I had to make was to use the extension ID as the RP id. This seems odd, but it appears to work. We need to learn more about FIDO2 and whether this is kosher. We also need to decide we want for the user experience -- authenticating within the extension or opening a window. We also need to look into what is allowed in apps, but I would bet the app can call webauthn. See for example https://stackoverflow.com/questions/67241714/how-to-use-webauthn-with-ios-and-react
-      let result = await fido_register(this.username);
-
-      // DZ -- currently waiting here for 502 bug on server to be resolved
-      console.log(result);
-
-      response = await sendAuthCSRToCA(username, authCert);
-      console.log("got response from CA");
-
-      if (response != null) {
-        //get certificate from CA, save it. This is your authenticator cert for the future!
-        await storeAuthCert(
-          deviceName,
-          response.data.authenticatorCertificate,
-          "1",
-          indexeddbKey
-        );
-
-        console.log("got an auth certificate");
-
-        //loggedIn variable set to true
-        chrome.storage.local.set({ loggedIn: true });
-        setLoggedInCredentials(makeKeypass(this.pin));
-
-        //create or update authenticator data with this device
-        if (!this.newDeviceLogin) {
-          await createAuthenticatorData(
-            deviceName,
-            response.data.authenticatorCertificate
-          );
-          console.log("created authenticator data");
-        } else {
-          await addAuthToAuthenticatorData(
-            deviceName,
-            response.data.authenticatorCertificate
-          );
-          console.log("added authenticator data");
-        }
-
-        await updateAllCertsList(indexeddbKey);
-      } else {
+      // TBD check for an error in the response and set an appropriate error message
+      if (response == null) {
         await this.failRegister();
         console.log("registration failed");
       }
 
-      this.loading = false;
-      console.log("win");
-
-      // DZ -- old method here
-      // generate FIDO login window
-      /* chrome.windows.create(
-        {
-          url:
-            "https://api.letsauth.org/" +
-            type +
-            "/" +
-            username +
-            "?kauth=" +
-            // dz bug fix
-            userInfo.publicKey,
-          // publicKeyPem,
-          type: "popup",
-        },
-        // TBD: note we don't need a callback here -- could use await since it returns a promise
-        async function (win) {
-          //sleep every 5 seconds before trying to get a signed auth cert from the CA
-          let response = "";
-          while (!response) {
-            // TBD try to find a better way to do this -- we need to wait for the user to authenticate. I believe the FIDO authentication results in a cookie being set so we are waiting for that. Maybe we need to send a temporary secret in the url params above, then send a request asking the server to respond when this secret/session has been authorized. Then send the request, because the cookie should be set.
-            await delay(5000);
-            response = await sendAuthCSRToCA(username, authCert);
-          }
-
-          console.log("got response from CA");
-
-          if (response != null) {
-            //get certificate from CA, save it. This is your authenticator cert for the future!
-            await storeAuthCert(
-              deviceName,
-              response.data.authenticatorCertificate,
-              "1",
-              indexeddbKey
-            );
-
-            console.log("got an auth certificate");
-
-            //loggedIn variable set to true
-            chrome.storage.local.set({ loggedIn: true });
-            setLoggedInCredentials(makeKeypass(this.pin));
-
-            //create or update authenticator data with this device
-            if (!this.newDeviceLogin) {
-              await createAuthenticatorData(
-                deviceName,
-                response.data.authenticatorCertificate
-              );
-              console.log("created authenticator data");
-            } else {
-              await addAuthToAuthenticatorData(
-                deviceName,
-                response.data.authenticatorCertificate
-              );
-              console.log("added authenticator data");
-            }
-
-            await updateAllCertsList(indexeddbKey);
-          } else {
-            await this.failRegister();
-            console.log("registration failed");
-          }
-
-          this.loading = false;
-          console.log("win");
-          //console.log(win);
-          //chrome.windows.remove(win.id);
-          hasFinished = true;
-        }
+      // store the authenticator certificate
+      // DZ look at what this call is doing. Why "1", why is device name needed?
+      await storeAuthCert(
+        this.deviceName,
+        response.data.certificate,
+        "1",
+        indexeddbKey
       );
 
-      // TBD see if there is a cleaner way to do this
-      while (!hasFinished) {
-        await delay(1000);
-      }*/
-      console.log("authSymmetricKeyString");
-      console.log(authSymmetricKeyString);
-      console.log(this.newDeviceLogin);
-      if (!this.newDeviceLogin) {
-        this.$router.push({
-          name: "SecurityPreparation",
-          params: { key: authSymmetricKeyString },
-        });
-      } else {
-        this.$router.push("/");
-      }
+      console.log("got an auth certificate");
+
+      //loggedIn variable set to true
+      // DZ see what this is needed for and waht it is doing
+      chrome.storage.local.set({ loggedIn: true });
+      setLoggedInCredentials(makeKeypass(this.pin));
+
+      // DZ likewise see what this is doing
+      //create or update authenticator data with this device
+      await createAuthenticatorData(
+        this.deviceName,
+        response.data.certificate
+      );
+      console.log("created authenticator data");
+
+      // DZ and see what this is doing!
+      await updateAllCertsList(indexeddbKey);
+
+      console.log("win");
+
+      // DZ we do need to have them print out the recovery kit
+      this.$router.push({
+        name: "SecurityPreparation",
+        params: { key: authSymmetricKeyString },
+      });
     },
     /**
      * Generates the public/private keypair for this authenticator
@@ -418,20 +276,22 @@ export default {
      * @returns object of user info that was just stored
      */
     async generateAndStoreKeys(username, symmetricKeyString, authname, idbKey) {
-      //generate key pair
-      let forge = require("node-forge");
-      const keyPair = forge.pki.rsa.generateKeyPair(2048);
+      // DZ should probably revisit this function to (1) generate a symmetric key, and (2) use
+      // this symmetric key to encrypt and decrypt the vault. Should look at 1Password to see how they do it.
+
+      //generate auth key pair
+      const authKeyPair = forge.pki.rsa.generateKeyPair(2048);
 
       //user database (indexeddb) doesn't allow keys to be stored in normal format
       //each key must be converted to PEM format for storage
-      let pemPrivate = forge.pki.privateKeyToPem(keyPair.privateKey);
-      let pemPublic = forge.pki.publicKeyToPem(keyPair.publicKey);
+      let pemAuthPrivate = forge.pki.privateKeyToPem(authKeyPair.privateKey);
+      let pemAuthPublic = forge.pki.publicKeyToPem(authKeyPair.publicKey);
 
       //give keys and other user info to this function to be stored in user index
       await storeNewUserInfo(
-        pemPrivate,
-        pemPublic,
-        this.username,
+        pemAuthPrivate,
+        pemAuthPublic,
+        username,
         makeKeypass(symmetricKeyString),
         this.deviceName,
         idbKey
@@ -442,44 +302,8 @@ export default {
       return userObject;
     },
     /**
-     * Adds form event listeners that ensure all fields are filled correctly before register button is enabled.
-     */
-    // addFormEventListeners() {
-    //   let callback = this.newDeviceLogin ? checkFormNewAuth : checkForm;
-    //   document.getElementById("username").addEventListener("input", callback);
-    //   document.getElementById("name").addEventListener("input", callback);
-    //   document.getElementById("pin").addEventListener("input", callback);
-
-    //   function checkForm() {
-    //     if (
-    //       document.getElementById("username").value &&
-    //       document.getElementById("name").value &&
-    //       document.getElementById("pin").value &&
-    //       document.getElementById("pin").value.length == 6
-    //     ) {
-    //       document.getElementById("registerButton").className =
-    //         "registerButton";
-    //     } else {
-    //       document.getElementById("registerButton").className =
-    //         "disabledButton";
-    //     }
-    //   }
-
-    //   function checkFormNewAuth() {
-    //     if (
-    //       document.getElementById("username").value &&
-    //       document.getElementById("name").value
-    //     ) {
-    //       document.getElementById("registerButton").className =
-    //         "registerButton";
-    //     } else {
-    //       document.getElementById("registerButton").className =
-    //         "disabledButton";
-    //     }
-    //   }
-    // },
-    /**
      * Navigates back to previous page. Used for back arrow.
+     * DZ -- should look at this and probably have a better navigation system and better use of the router.
      */
     navigateBack() {
       this.$router.go(-1);
@@ -490,6 +314,7 @@ export default {
      * Clears form and sets an error message to be displayed in html.
      */
     async failRegister() {
+      // DZ figure out what to do with this
       await clearUserDb();
       clearSecretLocalStorage();
       // document.getElementById("registerForm").reset();

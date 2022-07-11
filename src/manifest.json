@@ -4,6 +4,7 @@
   "author": "Let's Authenticate",
   "version": "1.0.0",
   "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0T5R7eQYLQX1QkRYn/aeT7mXi4aqb5HK81iucWXFrMrw0dng/aiwiLipgNb9swucLbzYO/QNc+f/RubP8Lyk9iODht+watJyFGl1HI1mTfP2Wc4hXKQ8Isq6G+SuZXiih0QJT4KPAxFCiLOIJdRskEVByYeEf3UKvjAigWeFI4FruPCrHEwV/A1itAMSp/1isF347gfC5R7vTm6eyQ8Osr6TFIFRH9cMCYXDvSBAUvpCMAENe5EfUTeogafVfeZBp43p/kY4RBNYVXAQrQDMdWGrBfy0MevDSL+XYur5ueSplRnpFLjuaGP69/MhdRD0YWKB6HzG0Nf8qH9ENqoi6QIDAQAB",
   "icons": {
     "48": "icons/key_icon.png",
     "128": "icons/key_icon.png"

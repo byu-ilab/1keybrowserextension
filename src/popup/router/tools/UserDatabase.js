@@ -12,12 +12,19 @@ import { applyEncryptionMiddleware, cryptoOptions } from "dexie-encrypted";
 
 /**
  * Stores user info for this first time upon registering this authenticator.
+ * 
+ * DZ -- should rename these to pemAuthPrivateKey and pemAuthPublicKey
+ * DZ -- are these keys stored encrypted?
  *
  * @param pemPrivateKey PEM string of this authenticator's private key
  * @param pemPublicKey PEM string of this authenticator's public key
  * @param username string of username for user's 1Key account
+ * 
+ * DZ -- the symmetric key is no longer derived from a password -- it is a secret that they have to store safely
  * @param symmetricKey string of symmetric key derived from generated/user entered string, used to encrypt authentication data key
  * @param authname string of name given to this authenticator
+ * 
+ * DZ -- how does this work? how is this key kept safe? should probably be derived from a PIN
  * @param idbKey key used to encrypt the user database
  */
 export async function storeNewUserInfo(
@@ -63,27 +70,29 @@ export async function storeNewUserInfo(
  * @returns user info object or undefined if an error occurs
  */
 export async function getUserInfo(idbKey) {
-  if (await checkForRegisteredUser()) {
-    if (!idbKey) {
-      idbKey = getIndexeddbKey(getLoggedInCredentials());
-    }
-    const db = new Dexie("userDb");
-
-    if (idbKey) {
-      applyEncryptionMiddleware(db, idbKey, {
-        keyStore: cryptoOptions.NON_INDEXED_FIELDS
-      });
-    }
-
-    db.version(2).stores({ keyStore: "id" });
-
-    await db.open();
-    let userInfo = await db.keyStore.toArray();
-    db.close();
-    return userInfo[0];
-  } else {
-    return undefined;
+  let registered = await checkForRegisteredUser()
+  if (!registered) {
+    return undefined
   }
+
+  // if we get here, the user is registered
+  if (!idbKey) {
+    idbKey = getIndexeddbKey(getLoggedInCredentials());
+  }
+  const db = new Dexie("userDb");
+
+  if (idbKey) {
+    applyEncryptionMiddleware(db, idbKey, {
+      keyStore: cryptoOptions.NON_INDEXED_FIELDS
+    });
+  }
+
+  db.version(2).stores({ keyStore: "id" });
+
+  await db.open();
+  let userInfo = await db.keyStore.toArray();
+  db.close();
+  return userInfo[0];
 }
 
 /**

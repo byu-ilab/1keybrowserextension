@@ -62,7 +62,9 @@ export function makeCSR(privateKey, publicKey, nameValue, emailValue) {
     }
   ]);
 
+  console.log("signing")
   csr.sign(privateKey);
+  console.log("back from signing")
 
   //return csr in PEM format
   let pem = forge.pki.certificationRequestToPem(csr);
