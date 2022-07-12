@@ -1,77 +1,49 @@
-## Instructions to install Let's Authenticate Extension (Built version)
 
-After cloning this repository, navigate to browser_ext/dist-zip.
-In this folder unzip lets-auth-extension-v1.0.0.zip
+# 1 Key Browser Extension
 
-Once you upload it, the extension will give you the error
-"WebSocket connection to 'ws://localhost:9090/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED"
-but this is fine. Everything will work normally.
+Part of the Let's Authenticate system.
 
-**For Version 0.2 you can use the directions for testing on your browser of choice below.**
+## Status
 
-## Instructions to install Let's Authenticate Extension (Development version)
+We are working on getting the browser extension compliant with version 3 of the Let's Authenticate protocol. The following are working:
 
-After cloning this repository, navigate inside the browser_ext directory and run:
+- creating an account with the CA
 
-```
-  npm install
-```
+## Development
 
-Followed by:
+To work with this extension, you will want to run the extension, the CA, and the CA website on your own machine. Everything is currently setup to work on localhost.
+
+### Build the extension
+
+After cloning this repository, navigate inside the directory and run:
 
 ```
-  npm run watch:dev
+npm install
 ```
 
-Update from DZ, I now use:
+followed by
 
 ```
 npm run build
 ```
 
-## Test on Chrome
+### Run the Let's Authenticate CA
 
-Go to chrome://extensions
-Toggle on "Developer mode" in the top right corner.
+See the [CA repository](https://github.com/Usable-Security-and-Privacy-Lab/lets-auth-ca) for instructions.
 
-Select the "Load unpacked" button that appears in the top left.
-Upload the "dist" folder of browser_ext, or upload the unzipped folder of lets-auth-extension-v1.0.0.zip.
+### Run the Let's Authenticate web front end
 
-## Test on Firefox
+See the [web site repository](https://github.com/byu-ilab/LetsAuthWebPage) for instructions.
 
-For firefox you can not use the zipped version because the following edits have to be made.
+### Test the extension using Chrome
 
-Open browser_ext/src/manifest.json and add this to the list:
+- Go to `chrome://extensions`.
+- Toggle on "Developer mode" in the top right corner.
+- Select the "Load unpacked" button that appears in the top left.
+- Upload the "dist" folder.
+- Browse to `chrome-extension://ghhgdcfhabbfmacalblnfobgacebgeie/popup/popup.html`
 
-```
-"applications": {
-  "gecko": {
-    "id": "Keystone@letsauth.org",
-    "strict_min_version": "53.0"
-  }
-},
-```
+Because we have hard-coded the extension identifier in the manifest, you can view it this way for simpler debugging (you can open the Chrome Developer console and it will stay there as long as the tab is open).
 
-This fixes a bug specific to running the extension in firefox as a temporary add-on.
 
-Go to about:debugging#/runtime/this-firefox
-Under temporary extensions select "Load Temporary Add-on".
-Upload background.js from the "dist" folder of browser_ext.
 
-## Test on Opera
-
-Go to opera:extensions
-Toggle on "Developer mode" in the top right corner.
-
-Select the "Load unpacked" button that appears in the top left.
-Upload the "dist" folder of browser_ext, or upload the unzipped folder of lets-auth-extension-v1.0.0.zip.
-
-## Test on Microsoft Edge
-
-First go to edge://flags
-Scroll down to "Enable Extensions Lab functionality" and enable it.
-
-Now go to edge://extensions
-Toggle on "Developer mode" in the bottom left corner.
-Select the "Load unpacked" button that appears in the top right.
-Upload the "dist" folder of browser_ext, or upload the unzipped folder of lets-auth-extension-v1.0.0.zip.

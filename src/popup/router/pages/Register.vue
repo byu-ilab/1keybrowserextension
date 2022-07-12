@@ -88,6 +88,9 @@
 
 var forge = require('node-forge');
 
+// import base64url from "base64url";
+import { Buffer } from 'buffer'
+
 
 import {
   storeNewUserInfo,
@@ -176,20 +179,22 @@ export default {
 
       console.log("generated and stored keys");
 
-      // get the authenticator public key from the user info -- and need to convert them back from PEM
-      let authPublicKey = forge.pki.publicKeyFromPem(this.userInfo.publicKey);
-
       // DZ we need to add this localhost:8000 to a "debug" vs "production" setting somewhere
       // This opens a new browser tab so the user can create their account with the CA. Once they are done, they can
       // move on to step 2. Note we need to send the username and the authPublicKey so that the user, once their account is
       // created, have authorized authPublicKey to be valid for their account.
+      console.log("public key before opening tab", this.userInfo.publicKey)
+      
+      // convert public key in PEM string to Base 64 encoded version
+      //let publicKey = base64url.encode(this.userInfo.publicKey)
+      let publicKey = Buffer.from(this.userInfo.publicKey).toString('base64')
       await chrome.tabs.create(
         {
           url:
             "http://localhost:8080/register/" +
             this.username +
             "?authPublicKey=" +
-            authPublicKey
+            publicKey
         });
 
       // DZ we are going to need to wait for registration to be done, which is controlled by the user. So we are now done and wait for the user to advance in step 2.
@@ -197,6 +202,7 @@ export default {
     },
     async registerStep2() {
       // get the authenticator keys from the user info -- and need to convert them back from PEM
+      // DZ -- I think we could store the public key in its native form *in addition* to PEM in the userInfo struct?
       let authPublicKey = forge.pki.publicKeyFromPem(this.userInfo.publicKey);
       let authPrivateKey = forge.pki.privateKeyFromPem(this.userInfo.privateKey);
 
@@ -247,14 +253,14 @@ export default {
 
       // DZ likewise see what this is doing
       //create or update authenticator data with this device
-      await createAuthenticatorData(
-        this.deviceName,
-        response.data.certificate
-      );
-      console.log("created authenticator data");
+      //await createAuthenticatorData(
+      //  this.deviceName,
+      //  response.data.certificate
+      //);
+      // console.log("created authenticator data");
 
       // DZ and see what this is doing!
-      await updateAllCertsList(indexeddbKey);
+      // await updateAllCertsList(indexeddbKey);
 
       console.log("win");
 
@@ -286,6 +292,8 @@ export default {
       //each key must be converted to PEM format for storage
       let pemAuthPrivate = forge.pki.privateKeyToPem(authKeyPair.privateKey);
       let pemAuthPublic = forge.pki.publicKeyToPem(authKeyPair.publicKey);
+      
+      console.log("public key in PEM format",pemAuthPublic)
 
       //give keys and other user info to this function to be stored in user index
       await storeNewUserInfo(
