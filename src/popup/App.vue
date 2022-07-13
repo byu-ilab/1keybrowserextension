@@ -1,6 +1,12 @@
 <template>
   <div id="app">
-    <router-view />
+    <div class="header">
+      <div class="title">Let's Authenticate</div>
+      <img class="logo" src="../icons/key-hole-medium.png"/>
+    </div>
+    <div class="content">
+      <router-view />
+    </div>
   </div>
 </template>
 
@@ -15,12 +21,10 @@
 import { getAuthCert } from "./router/tools/CertDatabase.js";
 import {
   checkForRegisteredUser,
-  getUserInfo
 } from "./router/tools/UserDatabase.js";
 import { isTimeExpired } from "./router/tools/CertGen.js";
 import {
   getLoggedInValue,
-  getNightModeSetting
 } from "./router/tools/LocalStorage.js";
 export default {
   data() {
@@ -29,32 +33,25 @@ export default {
       deviceCertExpired: false
     };
   },
-  async created() {
-    //check if it's in night mode
-    this.$root.$data.nightMode = await getNightModeSetting();
-    if (this.$root.$data.nightMode) {
-      document.body.style.backgroundColor = "var(--n-replace-white)";
+  async beforeCreate() {
+    // first check if we have a registered user. If not, we need to go to the account creation / add new device page
+    let registered = await checkForRegisteredUser();
+    if (!registered) {
+      this.$router.push("/new-user");
+      return;
     }
 
-    //home page is pushed for non-registered accounts, logged out accounts,
-    //or when user is logged in but auth cert has expired
-    let userInfo = await getUserInfo();
-    if (await checkForRegisteredUser()) {
-      this.loggedIn = await getLoggedInValue();
-      if (this.loggedIn) {
-        this.checkDeviceCertExpiration(userInfo.authname);
-        if (this.deviceCertExpired) {
-          //user is logged in, but auth cert is expired
-          this.$router.push("/home");
-        }
-      } else {
-        //user is logged out
-        this.$router.push("/home");
-      }
-    } else {
-      //if user isn't registered
-      this.$router.push("/home");
+    // now check if we are logged in
+    this.loggedIn = await getLoggedInValue();
+    // if we are logged in, then go to the main page
+    if (loggedIn) {
+      return;
     }
+    // otherwise, go to the login page
+    this.$router.push("/login");
+
+    // we used to check device cert expiration here -- not sure if we need this
+    // this.checkDeviceCertExpiration(userInfo.authname);
   },
   methods: {
     /**
@@ -70,11 +67,16 @@ export default {
 </script>
 
 <style>
-@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@200&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Archivo:wght@100&family=Roboto:wght@400;700&display=swap");
+
 
 :root {
+  --black: #000;
+  --blue: #219EBC;
+  --orange: #FB8500;
   --dk-green: #165663;
-  --logo-gray: #899fa3;
+  --logo-gray: #373c3d;
   --lt-gray: #c8d1d7;
   --scroll-box: #c8d3d8;
   --fail-red: #b22222;
@@ -86,7 +88,10 @@ export default {
 }
 
 #app {
-  font-family: "Montserrat", sans-serif;
+  font-family: "Roboto", sans-serif;
+  font-size: 16px;
+  width: 600px;
+  height: 400px;
 }
 
 body {
@@ -94,7 +99,65 @@ body {
   background: white;
 }
 
+h1 {
+  font-size: 20px;
+}
+
 h2 {
   font-size: 20px;
 }
+
+button {
+  background-color: #FB8500;
+  border: none;
+  color: white;
+  padding: 15px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  -webkit-transition-duration: 0.4s; /* Safari */
+  transition-duration: 0.4s;
+}
+
+button:hover {
+  box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+}
+
+.blue {
+  background-color: #023047;
+}
+
+
+.header {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  background-color: #219EBC;
+  height: 100px;
+  padding-top: 10px;
+}
+
+.title {
+  font-family: "Raleway", serif;
+  font-size: 30px;
+  color: white;
+}
+
+.logo {
+  width: 60px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.padded {
+  padding: 10px 50px;
+}
+
 </style>

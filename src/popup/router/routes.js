@@ -1,4 +1,5 @@
 import Login from "./pages/Login";
+import NewUser from "./pages/NewUser";
 import Register from "./pages/Register";
 import NewDevice from "./pages/NewDevice"; //ADDED
 import ForgotPassword from "./pages/ForgotPassword";
@@ -20,10 +21,14 @@ export default [
     component: Login
   },
   {
+    path: "/new-user",
+    name: "New User",
+    component: NewUser
+  },
+  {
     path: "/register",
     name: "Register",
     component: Register,
-    props: true
   },
   { //ADDED
     path: "/newdevice",

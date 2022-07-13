@@ -5,61 +5,46 @@
  * The user database is used to store important and sensitive information for this user and this authenticator.
  */
 
-import { makeKeypass } from "./CertGen.js";
-import { getLoggedInCredentials, getIndexeddbKey } from "./LocalStorage.js";
+ // Note we are trying to follow the advice found here:
+ //
+ // https://levelup.gitconnected.com/adding-encryption-at-rest-to-your-web-app-with-mrs-jeggers-f50b037fbc54
+ // 
+
+
 import Dexie from "dexie";
-import { applyEncryptionMiddleware, cryptoOptions } from "dexie-encrypted";
+
+const db = new Dexie("userDb");
+  
+db.version(1).stores({
+  user: "++id",
+  localVault: "++id",
+  remoteVault: "++id"
+});
+
+
 
 /**
- * Stores user info for this first time upon registering this authenticator.
  * 
- * DZ -- should rename these to pemAuthPrivateKey and pemAuthPublicKey
- * DZ -- are these keys stored encrypted?
- *
- * @param pemPrivateKey PEM string of this authenticator's private key
- * @param pemPublicKey PEM string of this authenticator's public key
- * @param username string of username for user's 1Key account
- * 
- * DZ -- the symmetric key is no longer derived from a password -- it is a secret that they have to store safely
- * @param symmetricKey string of symmetric key derived from generated/user entered string, used to encrypt authentication data key
- * @param authname string of name given to this authenticator
- * 
- * DZ -- how does this work? how is this key kept safe? should probably be derived from a PIN
- * @param idbKey key used to encrypt the user database
+ * @param {*} username -- username for the user
+ * @param {*} localVaultSalt -- salt for the local vault
+ * @param {*} localVaultIV -- IV for the local vault
+
  */
-export async function storeNewUserInfo(
-  pemPrivateKey,
-  pemPublicKey,
+export async function createUser(
   username,
-  symmetricKey,
-  authname,
-  idbKey
+  localVaultSalt,
+  localVaultIV,
 ) {
-  const db = new Dexie("userDb");
-
-  // set the key and provide a configuration of how to encrypt at a table level.
-  applyEncryptionMiddleware(db, idbKey, {
-    keyStore: cryptoOptions.NON_INDEXED_FIELDS
-  });
-
-  // If this is the first time you've encrypted bump the version number.
-  db.version(2).stores({
-    keyStore: "id, username"
-  });
 
   await db.open();
-  await db.keyStore.delete(1);
 
-  const userInfo = {
-    id: 1,
-    privateKey: pemPrivateKey,
-    publicKey: pemPublicKey,
+  const user = {
     username: username,
-    authSymmetricKey: symmetricKey,
-    authname: authname
+    localVaultSalt: localVaultSalt,
+    localVaultIV: localVaultIV
   };
 
-  await db.keyStore.add(userInfo);
+  await db.user.add(user);
   db.close();
 }
 
@@ -69,30 +54,11 @@ export async function storeNewUserInfo(
  * @param idbKey optional; key used to encrypt the user database
  * @returns user info object or undefined if an error occurs
  */
-export async function getUserInfo(idbKey) {
-  let registered = await checkForRegisteredUser()
-  if (!registered) {
-    return undefined
-  }
-
-  // if we get here, the user is registered
-  if (!idbKey) {
-    idbKey = getIndexeddbKey(getLoggedInCredentials());
-  }
-  const db = new Dexie("userDb");
-
-  if (idbKey) {
-    applyEncryptionMiddleware(db, idbKey, {
-      keyStore: cryptoOptions.NON_INDEXED_FIELDS
-    });
-  }
-
-  db.version(2).stores({ keyStore: "id" });
-
+export async function getUserInfo() {
   await db.open();
-  let userInfo = await db.keyStore.toArray();
+  let user = await db.user.first();
   db.close();
-  return userInfo[0];
+  return user;
 }
 
 /**
@@ -101,6 +67,7 @@ export async function getUserInfo(idbKey) {
  */
 export async function clearUserDb() {
   await Dexie.delete("userDb");
+  db = null;
 }
 
 /**
@@ -109,33 +76,57 @@ export async function clearUserDb() {
  * @returns boolean for if user is registered with this authenticator.
  */
 export async function checkForRegisteredUser() {
-  return await Dexie.exists("userDb");
+  let exists = await Dexie.exists("userDb");
+  if (!exists) {
+    return false;
+  }
+  await db.open();
+  let user = await db.user.first();
+  if (!user) {
+    return false;
+  }
+
+  return true
 }
 
-/**
- * Edits the password-derived key in the user's info object.
- *
- * @param newPassword string for new master password
- * @param userInfo user info object
- *
- * @returns key derived from new master password
+
+/********* Local Vault ********/
+
+/** Create a vault
+ * @param {*} localVaultIV -- used to encrypt the local vault
+ * @param {*} localVaultIV -- used to encrypt the local vault
+ * @param {*} remoteVaultIV -- used to decrypt the remote vault
+ * @param {*} remoteVaultKey -- used to decrypt the remote vault
+ * @param {*} authKeyPair -- used to request an authCertificate
+ * @param {*} authCertificate -- used to prove we are authorized to retrieve the remote vault
  */
-export async function changePasswordInUserDb(newPassword, userInfo) {
-  //this must be called AFTER idbkey has been re-encrypted with new password
+export async function createLocalVault(
+  localVaultIV,
+  localVaultKey,
+  remoteVaultIV,
+  remoteVaultKey,
+  authKeyPair,
+  authCertificate,
+) {
 
-  //generates new keypass
-  let keypass = makeKeypass(newPassword);
+  await db.open();
 
-  //rewrites user entry with said keypass added to top of password list
-  await storeNewUserInfo(
-    userInfo.privateKey,
-    userInfo.publicKey,
-    userInfo.username,
-    keypass,
-    userInfo.authname,
-    getIndexeddbKey(newPassword)
-  );
+  const vault = {
+    remoteVaultIV: remoteVaultIV,
+    remoteVaultKey: remoteVaultKey,
+    authkeyPair: authKeyPair,
+    authCertificate: authCertificate,
+  };
 
-  //returns generated keypass
-  return keypass;
+  let cipher = forge.cipher.createCipher('AES-GCM', localVaultKey);
+  cipher.start({iv: localVaultIV});
+  cipher.update(forge.util.createBuffer(vault, 'raw'));
+  cipher.finish();
+
+  const encryptedVault = {
+    localVault: cipher.output
+  }
+
+  await db.localVault.add(encryptedVault);
+  db.close();
 }
