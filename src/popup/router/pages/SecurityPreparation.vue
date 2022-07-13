@@ -1,5 +1,5 @@
 <template>
-  <div class="security">
+  <div class="padded">
     <h1>
       Account Security
     </h1>
@@ -14,7 +14,7 @@
       <div class="circle">1</div>
       <div class="instructions">
         Download the pdf file of your key
-        <div class="downloadLink" id="link" @click="downloadPdf">here.</div>
+        <button @click="downloadPdf">here.</button>
       </div>
     </div>
 
@@ -49,7 +49,6 @@
       </div>
       <div class="pdfTitle">
         <strong>Username: </strong>{{ pdfUsername }}<br />
-        <strong>Device name: </strong>{{ pdfDevicename }}<br />
       </div>
       <div class="pdfInstruct">
         <strong>Instructions: </strong>
@@ -70,7 +69,7 @@
  */
 
 import jsPDF from "jspdf";
-import { getUserInfo } from "../tools/UserDatabase.js";
+import { getUser } from "../tools/UserDatabase.js";
 export default {
   name: "SecurityPreparation",
   data() {
@@ -78,7 +77,6 @@ export default {
       downloaded: false,
       key: "",
       pdfUsername: "",
-      pdfDevicename: ""
     };
   },
   async mounted() {
@@ -91,11 +89,10 @@ export default {
      */
     async makePasswordRecoveryFile() {
       //get user info from encrypted local database
-      let userInfo = await getUserInfo();
+      let userInfo = await getUser();
 
       //save pertinent information and instructions
       this.pdfUsername = userInfo.username;
-      this.pdfDevicename = userInfo.devicename;
       this.key = this.$route.params.key;
     },
     /**

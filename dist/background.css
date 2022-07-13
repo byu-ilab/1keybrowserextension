@@ -41,20 +41,20 @@
 .accountDetails[data-v-525b98ae]{display:flex;flex-direction:column;text-align:center}.title[data-v-525b98ae]{margin:0px 20px 10px 20px;display:flex;flex-direction:row;background-color:var(--scroll-box);color:var(--dk-green);border-radius:3px;padding:12px;width:280px;box-shadow:.1em .1em .1em rgba(0,0,0,.3)}.info[data-v-525b98ae]{display:flex;flex-direction:column;text-align:start;justify-content:center;align-items:flex-start;margin-left:12px;font-weight:bold;font-size:12px}.loadingButton[data-v-525b98ae]{text-align:center;padding:10px;width:75px;height:75px;border-radius:50px;font-size:12px;font-weight:bold;color:var(--dk-green);margin-left:20px;margin-right:20px;display:flex;flex-direction:column;align-items:center;background:rgba(137,159,163,.2);pointer-events:none}.loadingButton img[data-v-525b98ae]{margin-bottom:5px}.accountDetailsButton[data-v-525b98ae]{text-align:center;padding:10px;width:75px;height:75px;border-radius:50px;font-size:12px;font-weight:bold;color:var(--dk-green);margin-left:20px;margin-right:20px;display:flex;flex-direction:column;align-items:center}.accountDetailsButton img[data-v-525b98ae]{margin-bottom:5px}.accountDetailsButton[data-v-525b98ae]:hover{background:rgba(137,159,163,.2)}.buttonRow[data-v-525b98ae]{display:flex;flex-direction:row;width:100%;justify-content:center;align-items:center;margin-top:10px}.syncFail[data-v-525b98ae]{margin-bottom:5px;font-size:10px;color:var(--fail-red);padding:2px}.syncSuccess[data-v-525b98ae]{margin-bottom:5px;font-size:10px;color:var(--logo-gray);padding:2px}.field[data-v-525b98ae]{padding:5px}.instructions[data-v-525b98ae]{font-size:12px;color:var(--lt-gray);padding:2px}
 .settings[data-v-8ed40d86]{display:flex;flex-direction:column;text-align:center;align-items:center}.settingName[data-v-8ed40d86]{width:230px;text-align:left}.settingRow[data-v-8ed40d86]{display:flex;flex-direction:row;justify-content:space-between;align-items:center;font-size:15px;padding-top:20px}.switch[data-v-8ed40d86]{position:relative;display:inline-block;width:48px;height:28px}.switch input[data-v-8ed40d86]{opacity:0;width:0;height:0}.slider[data-v-8ed40d86]{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:var(--lt-gray);-webkit-transition:.4s;transition:.4s;border-radius:34px}.slider[data-v-8ed40d86]:before{position:absolute;content:"";height:20px;width:20px;left:4px;bottom:4px;background-color:#fff;-webkit-transition:.4s;transition:.4s;border-radius:50%}input:checked+.slider[data-v-8ed40d86]{background-color:var(--dk-green)}input:focus+.slider[data-v-8ed40d86]{box-shadow:0 0 1px var(--lt-gray)}input:checked+.slider[data-v-8ed40d86]:before{-webkit-transform:translateX(20px);-ms-transform:translateX(20px);transform:translateX(20px)}select[data-v-8ed40d86]{font-family:"Montserrat",sans-serif;font-size:11px;margin-left:10px;margin-right:10px;padding:2px}
 
-.content[data-v-17fd0256] {
+.content[data-v-4d506576] {
   padding: 0px;
 }
-.body[data-v-17fd0256] {
+.body[data-v-4d506576] {
   display: flex;
   flex-direction: row;
 }
-.menu[data-v-17fd0256] {
+.menu[data-v-4d506576] {
   display: flex;
   flex-direction: column;
   background: var(--white);
   width: 95px;
 }
-.menuItem[data-v-17fd0256] {
+.menuItem[data-v-4d506576] {
   width: 100px;
   height: 50px;
   padding: 5px;
@@ -69,11 +69,11 @@
   text-align: center;
   cursor: pointer;
 }
-.selectedMenuItem[data-v-17fd0256] {
+.selectedMenuItem[data-v-4d506576] {
   background: white;
   color: #000;
 }
-.footer[data-v-17fd0256] {
+.footer[data-v-4d506576] {
   width: 100%;
   height: 40px;
   background: var(--black);
@@ -83,13 +83,13 @@
   align-items: center;
   justify-content: space-between;
 }
-.footer img[data-v-17fd0256] {
+.footer img[data-v-4d506576] {
   height: 25px;
   width: 25px;
   margin-left: 10px;
   margin-right: 10px;
 }
-.logoutButton[data-v-17fd0256] {
+.logoutButton[data-v-4d506576] {
   background: #f6c269;
   text-align: center;
   padding: 5px;
@@ -99,15 +99,15 @@
   width: 100px;
   margin-top: 10px;
 }
-.logoutButton[data-v-17fd0256]:hover {
+.logoutButton[data-v-4d506576]:hover {
   background: #b8924f;
   color: #fff;
 }
-.componentContainer[data-v-17fd0256] {
+.componentContainer[data-v-4d506576] {
   padding: 30px;
   text-align: left;
 }
-.noRequest[data-v-17fd0256] {
+.noRequest[data-v-4d506576] {
   font-size: 25px;
   font-weight: bold;
 }

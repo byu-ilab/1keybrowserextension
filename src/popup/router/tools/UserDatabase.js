@@ -11,7 +11,15 @@
  // 
 
 
+// this is for permanent storage (vaults are encrypted)
 import Dexie from "dexie";
+
+// this is for temporary storage while the user is logged in (vaults are decrypted)
+import { store } from './store.js'
+
+var forge = require('node-forge');
+
+// initialize the database
 
 const db = new Dexie("userDb");
   
@@ -26,26 +34,27 @@ db.version(1).stores({
 /**
  * 
  * @param {*} username -- username for the user
- * @param {*} localVaultSalt -- salt for the local vault
- * @param {*} localVaultIV -- IV for the local vault
+ * @param {*} password -- password for the local vault
 
  */
-export async function createUser(
-  username,
-  localVaultSalt,
-  localVaultIV,
-) {
+export async function createUser(username, password) {
 
+  let [ localVaultSalt, localVaultIV, localVaultKey ] = await generateLocalVaultKey(password);
+  console.log("generated keys",localVaultSalt, localVaultIV, localVaultKey);
   await db.open();
 
   const user = {
     username: username,
+    loggedIn: true,
     localVaultSalt: localVaultSalt,
-    localVaultIV: localVaultIV
+    localVaultIV: localVaultIV,
   };
 
   await db.user.add(user);
+  let returnedUser = db.user.get(1);
+  console.log("created user", user.id)
   db.close();
+  return [ returnedUser, localVaultKey ];
 }
 
 /**
@@ -54,11 +63,59 @@ export async function createUser(
  * @param idbKey optional; key used to encrypt the user database
  * @returns user info object or undefined if an error occurs
  */
-export async function getUserInfo() {
+export async function getUser() {
   await db.open();
-  let user = await db.user.first();
+  let user = await db.user.get(1);
   db.close();
   return user;
+}
+
+export async function loginUser(password) {
+  await db.open();
+  await db.user.update(user.id, {loggedIn: true});
+  let user = await db.user.get(1);
+
+  let localVaultKey = getLocalVaultKey(user.localVaultSalt, password);
+
+
+  // decrypt the local vault and store it in global state
+  let localVault = decryptLocalVault(user.localVaultIV, localVaultKey);
+  $actions.setLocalVault(localVault);
+  
+  // TBD: decrypt the remote vault
+  db.close();
+}
+
+export async function loginUserWithKey(key) {
+  await db.open();
+  await db.user.update(user.id, {loggedIn: true});
+  let user = await db.user.get(1);
+
+  let localVaultKey = key;
+
+  // decrypt the local vault and store it in global state
+  let localVault = decryptLocalVault(user.localVaultIV, localVaultKey);
+  store.setLocalVault(localVault);
+  
+  // TBD: decrypt the remote vault
+  db.close();
+}
+
+export async function logoutUser() {
+  await db.open();
+  await db.user.update(user.id, {loggedIn: false});
+
+  // remove the decrypted vaults
+  store.clearAll()
+  db.close();
+}
+
+export async function isLoggedIn() {
+  await db.open()
+  let user = await db.user.get(1);
+  let loggedIn = user.loggedIn;
+  db.close()
+  return loggedIn;
 }
 
 /**
@@ -81,7 +138,7 @@ export async function checkForRegisteredUser() {
     return false;
   }
   await db.open();
-  let user = await db.user.first();
+  let user = await db.user.get(1);
   if (!user) {
     return false;
   }
@@ -92,9 +149,23 @@ export async function checkForRegisteredUser() {
 
 /********* Local Vault ********/
 
+export async function generateLocalVaultKey(password) {
+  const numIterations = 5000;
+  let localVaultSalt = forge.random.getBytesSync(128);
+  let localVaultIV = forge.random.getBytesSync(16);
+  let localVaultKey = forge.pkcs5.pbkdf2(password, localVaultSalt, numIterations, 16);
+  return [ localVaultSalt, localVaultIV, localVaultKey ];
+}
+
+export async function getLocalVaultKey(salt, password) {
+  const numIterations = 5000;
+  let localVaultKey = forge.pkcs5.pbkdf2(password, salt, numIterations, 16);
+  return localVaultKey;
+}
+
 /** Create a vault
  * @param {*} localVaultIV -- used to encrypt the local vault
- * @param {*} localVaultIV -- used to encrypt the local vault
+ * @param {*} localVaultKey -- used to encrypt the local vault
  * @param {*} remoteVaultIV -- used to decrypt the remote vault
  * @param {*} remoteVaultKey -- used to decrypt the remote vault
  * @param {*} authKeyPair -- used to request an authCertificate
@@ -129,4 +200,27 @@ export async function createLocalVault(
 
   await db.localVault.add(encryptedVault);
   db.close();
+
+  // put the vault into the store
+  store.setLocalVault(cipher.output);
+
+}
+
+export async function decryptLocalVault(
+  localVaultIV,
+  localVaultKey,
+) {
+
+  // get the encrypted vault
+  await db.open();
+  let encryptedVault = await db.localVault.get(1);
+  db.close();
+
+  // decrypt the vault
+  let decipher = forge.cipher.createDecipher('AES-CBC', localVaultKey);
+  decipher.start({iv: localVaultIV});
+  decipher.update(encryptedVault.localVault);
+
+  let localVault = decipher.finish();
+  return localVault
 }

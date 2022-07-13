@@ -22,15 +22,11 @@ import { getAuthCert } from "./router/tools/CertDatabase.js";
 import {
   checkForRegisteredUser,
 } from "./router/tools/UserDatabase.js";
-import { isTimeExpired } from "./router/tools/CertGen.js";
-import {
-  getLoggedInValue,
-} from "./router/tools/LocalStorage.js";
+import { isLoggedIn } from "./router/tools/UserDatabase.js"
 export default {
   data() {
     return {
       loggedIn: false,
-      deviceCertExpired: false
     };
   },
   async beforeCreate() {
@@ -42,9 +38,9 @@ export default {
     }
 
     // now check if we are logged in
-    this.loggedIn = await getLoggedInValue();
+    this.loggedIn = await isLoggedIn();
     // if we are logged in, then go to the main page
-    if (loggedIn) {
+    if (this.loggedIn) {
       return;
     }
     // otherwise, go to the login page

@@ -101,8 +101,10 @@ import LostAuthenticator from "../components/LostAuthenticator.vue";
 import AccountDetails from "../components/AccountDetails.vue";
 import Settings from "../components/Settings.vue";
 import {
+  logoutUser
+} from "../tools/UserDatabase.js";
+import {
   getAuthenticateValue,
-  setLogoutCredentials
 } from "../tools/LocalStorage.js";
 export default {
   data() {
@@ -132,11 +134,8 @@ export default {
      * Logout the user from the 1Key extension
      */
     logoutLetsAuthUser() {
-      chrome.storage.local.set({ loggedIn: false });
-      setLogoutCredentials();
-      if (this.$router) {
-        this.$router.push("/home");
-      }
+      logoutUser();
+      this.$router.push("/");
     },
     /**
      * Changes component displayed based on a menu bar selection.

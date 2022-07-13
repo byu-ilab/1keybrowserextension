@@ -57,6 +57,41 @@
         Authorize
       </button>
     </div>
+    <div v-if="step == 3">
+      <div class="step">
+          Step 3
+      </div>
+      <div class="instructions">
+        This is your recovery kit. Whenever you register a new device with your
+        1Key account or log out of this one, you will need to present the key in
+        this kit.
+      </div>
+
+      <div class="stepRow">
+        <div class="circle">1</div>
+        <div class="instructions">
+          <a :href="downloadLink" download="Lets-Authenticate-Recovery-Kit">Download your recovery kit.</a>
+        </div>
+      </div>
+
+      <div class="stepRow">
+        <div class="circle">2</div>
+        <div class="instructions">
+          Print and store copies of this document in a secure location or on other
+          devices.
+        </div>
+      </div>
+
+      <div class="stepRow">
+        <div class="circle">3</div>
+        <div class="instructions">
+          Permanetely delete the 1Key Account Recovery file from this device.
+        </div>
+      </div>
+
+      <router-link to="/"><button>Finish</button></router-link>
+
+    </div>
   </div>
 </template>
 
@@ -70,11 +105,11 @@ var forge = require('node-forge');
 
 // import base64url from "base64url";
 import { Buffer } from 'buffer'
-
+import { BLANK_PDF, generate } from '@pdfme/generator';
 
 import {
-  storeNewUserInfo,
-  getUserInfo,
+  createUser,
+  createLocalVault,
   clearUserDb,
 } from "../tools/UserDatabase.js";
 
@@ -89,14 +124,6 @@ import {
 } from "../tools/CertGen.js";
 
 import { sendAuthCSRToCA } from "../tools/ServerFacade.js";
-
-import {
-  getIndexeddbKey,
-  setLoggedInCredentials,
-  clearSecretLocalStorage,
-} from "../tools/LocalStorage.js";
-
-import { storeAuthCert } from "../tools/CertDatabase.js";
 
 
 // DZ -- We should have some workflow where the state in the DB tells us whether the user has registered this browser or not.
@@ -121,7 +148,10 @@ export default {
       userInfo: null,
       authKeyPair: null,
       pemAuthPrivate: null,
-      pemAuthPublic: null
+      pemAuthPublic: null,
+      remoteVaultIV: null,
+      remoteVaultKey: null,
+      downloadLink: ""
     };
   },
   methods: {
@@ -191,25 +221,22 @@ export default {
         console.log("registration failed");
       }
 
-      // Generate salt and password-derived key for local vault
-      var localVaultSalt = forge.random.getBytesSync(128);
-      var localVaultKey = forge.pkcs5.pbkdf2('password', salt, numIterations, 16);
-
       // create new user info
-      await createUser(this.username, localVaultSalt, localVaultIV);
+      let [ user, localVaultKey ] = await createUser(this.username, this.password);
+      
+      console.log("created user", user)
 
       // Generate symmetric key that will be stored in the local vault and used to decrypt the authentication data
-      let remoteVaultIV = forge.random.getBytesSync(16);
-      let remoteVaultKey = forge.random.getBytesSync(16);
+      this.remoteVaultIV = forge.random.getBytesSync(16);
+      this.remoteVaultKey = forge.random.getBytesSync(16);
+
+      console.log("generated keys")
 
       // create local vault
-      await createLocalVault(localVaultIV, localVaultKey, remoteVaultIV, remoteVaultKey, this.authKeyPair, response.data.certificate)
+      await createLocalVault(user.localVaultIV, localVaultKey, this.remoteVaultIV, this.remoteVaultKey, this.authKeyPair, response.data.certificate)
 
       console.log("got an auth certificate");
 
-      //loggedIn variable set to true
-      // DZ see what this is needed for and waht it is doing
-      chrome.storage.local.set({ loggedIn: true });
 
       // DZ figure out if we are going to create remote vault here or wait until we actually need one
 
@@ -227,10 +254,9 @@ export default {
       console.log("win");
 
       // DZ we do need to have them print out the recovery kit
-      this.$router.push({
-        name: "SecurityPreparation",
-        params: { key: vaultKey },
-      });
+      // DZ figure out whether we need to include the IV too -- what do LastPass and 1 Password do?
+      this.createPDF();
+      this.step = 3;
     },
     generateAuthenticatorKeyPair() {
       //generate auth key pair
@@ -257,7 +283,57 @@ export default {
       this.key = "";
       this.registerFail = true;
     },
-  },
+    async createPDF() {
+      const printableRemoteVaultKey = new Buffer.from(this.remoteVaultKey).toString('hex');
+
+      const template = {
+	      basePdf: BLANK_PDF,
+        schemas: [
+            {
+          header: {
+              type: 'text',
+              position: { x: 20, y: 20 },
+              width: 150,
+              height: 20,
+          },
+          instructions: {
+              type: 'text',
+              position: { x: 20, y: 40 },
+              width: 150,
+              height: 20,
+          },
+          username: {
+              type: 'text',
+              position: { x: 20, y: 60 },
+              width: 150,
+              height: 10,
+          },
+          key: {
+              type: 'text',
+              position: { x: 20, y: 70 },
+              width: 150,
+              height: 10,
+          },
+            },
+        ],
+      };
+      const inputs = [{ header: "Let's Authenticate Recovery Kit",
+            instructions: "Store this file in a secure location, NOT on the device it was created for. Whenever you register a new device with your Let's Authenticate account or log out of this one, you will need to enter the information in this kit.",
+            username: `Username: ${this.username}`,
+            key: `Key: ${printableRemoteVaultKey}`
+          }];
+
+      const pdf = await generate({ template, inputs });
+
+      // Browser
+      const blob = new Blob([pdf.buffer], { type: 'application/pdf' });
+      this.downloadLink = URL.createObjectURL(blob);
+
+      // Node.js
+      // fs.writeFileSync(path.join(__dirname, `Lets-Authenticate-Recovery-Kit.pdf`), pdf);
+
+    },
+  }
 };
 </script>
 
@@ -317,4 +393,29 @@ form .fail {
   padding: 5px;
   box-shadow: 3px 3px 5px 0px #ccc;
 }
+
+.stepRow {
+  margin: 15px 6px;
+  height: 50px;
+}
+
+.circle {
+  background: black;
+   border-radius: 0.8em;
+  -moz-border-radius: 0.8em;
+  -webkit-border-radius: 0.8em;
+  color: #ffffff;
+  font-weight: bold;
+  line-height: 1.6em;
+  margin-right: 15px;
+  text-align: center;
+  width: 1.6em; 
+  font-size: 1.6em;
+  float: left;
+}
+
+.instructions {
+  text-align: left;
+}
+
 </style>
