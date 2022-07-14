@@ -103,7 +103,7 @@ export async function loginUserWithKey(key) {
 
 export async function logoutUser() {
   await db.open();
-  await db.user.update(user.id, {loggedIn: false});
+  await db.user.update(1, {loggedIn: false});
 
   // remove the decrypted vaults
   store.clearAll()
