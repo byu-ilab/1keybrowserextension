@@ -109,8 +109,8 @@ import { BLANK_PDF, generate } from '@pdfme/generator';
 
 import {
   createUser,
-  createLocalVault,
   clearUserDb,
+  getRemoteVaultKey,
 } from "../tools/UserDatabase.js";
 
 import {
@@ -143,14 +143,12 @@ export default {
       errorMessage: "",
       registerFail: false,
       username: "",
+      // DZ not currently using device name. Should use it!
       deviceName: "",
       password: "",
-      userInfo: null,
       authKeyPair: null,
       pemAuthPrivate: null,
       pemAuthPublic: null,
-      remoteVaultIV: null,
-      remoteVaultKey: null,
       downloadLink: ""
     };
   },
@@ -197,10 +195,6 @@ export default {
       this.step = 2
     },
     async registerStep2() {
-      // DZ -- stopped here -- need to figure out passwords next and clean up storage
-      // DZ -- don't forget to get rid of encrypted local storage -- it's useless
-      // DZ -- can remove the password from local storage when we logout
-
       // create the authenticator CSR
       let csr = makeCSR(
         this.authKeyPair.privateKey,
@@ -213,7 +207,7 @@ export default {
 
       // send the CSR to the CA
       let response = await sendAuthCSRToCA(this.username, csr);
-      console.log("got response from CA", response);
+      console.log("got an auth certificate");
 
       // TBD check for an error in the response and set an appropriate error message
       if (response == null) {
@@ -221,26 +215,10 @@ export default {
         console.log("registration failed");
       }
 
-      // create new user info
-      let [ user, localVaultKey ] = await createUser(this.username, this.password);
+      // create new user and local vault
+      await createUser(this.username, this.password, this.authKeyPair, response.data.certificate);
       
-      console.log("created user", user)
-
-      // Generate symmetric key that will be stored in the local vault and used to decrypt the authentication data
-      this.remoteVaultIV = forge.random.getBytesSync(16);
-      this.remoteVaultKey = forge.random.getBytesSync(16);
-
-      console.log("generated keys");
-      const printableIV = new Buffer.from(user.localVaultIV).toString('hex');
-
-
-      console.log("using localVaultIV",printableIV)
-
-      // create local vault
-      await createLocalVault(user.localVaultIV, localVaultKey, this.remoteVaultIV, this.remoteVaultKey, this.authKeyPair, response.data.certificate)
-
-      console.log("got an auth certificate");
-
+      console.log("created user");
 
       // DZ figure out if we are going to create remote vault here or wait until we actually need one
 
@@ -270,6 +248,8 @@ export default {
       //each key must be converted to PEM format for storage
       this.pemAuthPrivate = forge.pki.privateKeyToPem(this.authKeyPair.privateKey);
       this.pemAuthPublic = forge.pki.publicKeyToPem(this.authKeyPair.publicKey)
+      console.log("authPrivateKey",this.pemAuthPrivate);
+      console.log("authPublicKey", this.pemAuthPublic);
     },
     /**
      * Called when registration fails for any reason.
@@ -288,7 +268,8 @@ export default {
       this.registerFail = true;
     },
     async createPDF() {
-      const printableRemoteVaultKey = new Buffer.from(this.remoteVaultKey).toString('hex');
+      const remoteVaultKey = getRemoteVaultKey();
+      const printableRemoteVaultKey = new Buffer.from(remoteVaultKey).toString('hex');
 
       const template = {
 	      basePdf: BLANK_PDF,

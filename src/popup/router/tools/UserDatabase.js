@@ -40,10 +40,10 @@ db.version(1).stores({
  * @param {*} password -- password for the local vault
 
  */
-export async function createUser(username, password) {
+export async function createUser(username, password, authKeyPair, authCertificate) {
 
+  // generate local vault key from password
   let [ localVaultSalt, localVaultIV, localVaultKey ] = generateLocalVaultKey(password);
-  await db.open();
 
   // hash the password
   // DZ we should check if there is a better way to do this.
@@ -52,6 +52,7 @@ export async function createUser(username, password) {
   md.update(password);
   const hash = md.digest().toHex();
 
+  // create a user structure
   const user = {
     username: username,
     hash: hash,
@@ -60,16 +61,26 @@ export async function createUser(username, password) {
     localVaultIV: localVaultIV,
   };
 
-
-  let primaryKey = await db.user.add(user);
-  console.log("added user with primary key",primaryKey)
-  let returnedUser = await db.user.get(1);
-
-  console.log("created user", returnedUser.id);
-  debugValue("with key", localVaultKey)
-  debugValue("with IV", returnedUser.localVaultIV);
+  // store user in the database
+  await db.open();
+  const primaryKey = await db.user.add(user);
   db.close();
-  return [ returnedUser, localVaultKey ];
+  console.log("added user with primary key",primaryKey)
+
+  // generate the IV and key for the remote vault
+  const remoteVaultIV = forge.random.getBytesSync(16);
+  const remoteVaultKey = forge.random.getBytesSync(16);
+
+  // convert certificate from PEM format
+  const certificate = forge.pki.certificateFromPem(authCertificate);
+
+  // create local vault
+  const vault = await createLocalVault(localVaultIV, localVaultKey, remoteVaultIV, remoteVaultKey, authKeyPair, certificate);
+
+  // put the unencrypted vault into the store
+  store.setLocalVault(vault);
+
+  printLocalVault(vault);
 }
 
 /**
@@ -116,6 +127,9 @@ export async function loginUser(password) {
   let localVault = await decryptLocalVault(user.localVaultIV, localVaultKey);
   console.log("decrypted local vault");
   store.setLocalVault(localVault);
+
+  printLocalVault(localVault);
+
 
   console.log("decrypted and set vault")
   
@@ -215,7 +229,8 @@ export async function createLocalVault(
   const vault = {
     remoteVaultIV: remoteVaultIV,
     remoteVaultKey: remoteVaultKey,
-    authkeyPair: authKeyPair,
+    authKeyPrivate: authKeyPair.privateKey,
+    authKeyPublic: authKeyPair.publicKey,
     authCertificate: authCertificate,
   };
 
@@ -223,9 +238,9 @@ export async function createLocalVault(
 
   debugValue("creating vault with key", localVaultKey);
   debugValue("and IV",localVaultIV);
+  
 
   let cipher = forge.cipher.createCipher('AES-GCM', localVaultKey);
-  console.log("setting IV");
   cipher.start({iv: localVaultIV});
   cipher.update(forge.util.createBuffer(vaultString));
   const success = cipher.finish();
@@ -257,15 +272,13 @@ export async function createLocalVault(
 
  */
 
-  console.log("Encypted vault is",localVault.vault);
+  console.log("Encrypted vault is",localVault.vault);
   console.log("with tag",localVault.tag);
 
   await db.localVault.add(localVault);
   db.close();
 
-  // put the vault into the store
-  store.setLocalVault(cipher.output);
-
+  return vault;
 }
 
 function debugValue(label, value) {
@@ -273,10 +286,21 @@ function debugValue(label, value) {
   console.log(label, printableValue);
 }
 
+function printLocalVault(vault) {
+  console.log("Encoding vault",vault);
+  const encodedVault = encodeVault(vault);
+  console.log("Encoded vault",encodedVault);
+}
+
 function encodeVault(vault) {
-  vault.remoteVaultIV = forge.util.encode64(vault.remoteVaultIV);
-  vault.remoteVaultKey = forge.util.encode64(vault.remoteVaultKey);
-  const vaultString = JSON.stringify(vault);
+  const encodedVault = {
+    remoteVaultIV: forge.util.encode64(vault.remoteVaultIV),
+    remoteVaultKey: forge.util.encode64(vault.remoteVaultKey),
+    authKeyPrivate: forge.pki.privateKeyToPem(vault.authKeyPrivate),
+    authKeyPublic: forge.pki.publicKeyToPem(vault.authKeyPublic),
+    authCertificate: forge.pki.certificateToPem(vault.authCertificate),
+  }
+  const vaultString = JSON.stringify(encodedVault);
   return vaultString;
 }
 
@@ -284,6 +308,9 @@ function decodeVault(vaultString) {
   let vault = JSON.parse(vaultString);
   vault.remoteVaultIV = forge.util.decode64(vault.remoteVaultIV);
   vault.remoteVaultKey = forge.util.decode64(vault.remoteVaultKey);
+  vault.authKeyPrivate = forge.pki.privateKeyFromPem(vault.authKeyPrivate);
+  vault.authKeyPublic = forge.pki.publicKeyFromPem(vault.authKeyPublic);
+  vault.authCertificate = forge.pki.certificateFromPem(vault.authCertificate);
   return vault;
 }
 
@@ -322,4 +349,15 @@ export async function decryptLocalVault(
   let returnedVault = decodeVault(decipher.output);
 
   return returnedVault
+}
+
+/* Remote Vault */
+
+export function getRemoteVaultKey() {
+  const vault = store.getLocalVault();
+  if (!vault)
+    return null;
+
+  return vault.remoteVaultKey;
+
 }
