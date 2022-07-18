@@ -10,58 +10,6 @@
   </div>
 </template>
 
-<script>
-/**
- * App.vue
- * Root of popup.
- * Determines whether to display Main.vue (logged in screen)
- * or Home.vue (screen to select how to authenticate)
- */
-
-import { getAuthCert } from "./router/tools/CertDatabase.js";
-import {
-  checkForRegisteredUser,
-} from "./router/tools/UserDatabase.js";
-import { isLoggedIn } from "./router/tools/UserDatabase.js"
-export default {
-  data() {
-    return {
-      loggedIn: false,
-    };
-  },
-  async beforeCreate() {
-    // first check if we have a registered user. If not, we need to go to the account creation / add new device page
-    let registered = await checkForRegisteredUser();
-    if (!registered) {
-      this.$router.push("/new-user");
-      return;
-    }
-
-    // now check if we are logged in
-    this.loggedIn = await isLoggedIn();
-    // if we are logged in, then go to the main page
-    if (this.loggedIn) {
-      return;
-    }
-    // otherwise, go to the login page
-    this.$router.push("/login");
-
-    // we used to check device cert expiration here -- not sure if we need this
-    // this.checkDeviceCertExpiration(userInfo.authname);
-  },
-  methods: {
-    /**
-     * Checks if the most recent device cert is expired. If so, user must login again.
-     * @param devicename String name of the authenticator currently being used.
-     */
-    async checkDeviceCertExpiration(devicename) {
-      let expirationTime = (await getAuthCert(devicename)).expire;
-      this.deviceCertExpired = isTimeExpired(expirationTime);
-    }
-  }
-};
-</script>
-
 <style>
 @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Archivo:wght@100&family=Roboto:wght@400;700&display=swap");
@@ -154,6 +102,48 @@ button:hover {
 
 .padded {
   padding: 10px 50px;
+}
+
+.form-and-button {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+form {
+  font-size: 14px;
+  margin: 10px 0px;
+}
+
+label {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+input {
+  margin-top: 2px;
+  width: 250px;
+  height: 15px;
+}
+
+.field {
+  padding: 5px;
+}
+
+form .fail {
+  text-align: center;
+}
+
+.fail {
+  color: #b22222;
+  padding: 2px;
+}
+
+.specs {
+  color: var(--logo-gray);
+  padding: 2px;
 }
 
 </style>

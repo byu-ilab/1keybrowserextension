@@ -17,6 +17,9 @@ import Dexie from "dexie";
 // this is for temporary storage while the user is logged in (vaults are decrypted)
 import { store } from './store.js'
 
+// for debugging, can delete later
+import { Buffer } from 'buffer'
+
 var forge = require('node-forge');
 
 // initialize the database
@@ -39,20 +42,32 @@ db.version(1).stores({
  */
 export async function createUser(username, password) {
 
-  let [ localVaultSalt, localVaultIV, localVaultKey ] = await generateLocalVaultKey(password);
-  console.log("generated keys",localVaultSalt, localVaultIV, localVaultKey);
+  let [ localVaultSalt, localVaultIV, localVaultKey ] = generateLocalVaultKey(password);
   await db.open();
+
+  // hash the password
+  // DZ we should check if there is a better way to do this.
+  let md = forge.md.sha256.create();
+  md.update(localVaultSalt)
+  md.update(password);
+  const hash = md.digest().toHex();
 
   const user = {
     username: username,
+    hash: hash,
     loggedIn: true,
     localVaultSalt: localVaultSalt,
     localVaultIV: localVaultIV,
   };
 
-  await db.user.add(user);
-  let returnedUser = db.user.get(1);
-  console.log("created user", user.id)
+
+  let primaryKey = await db.user.add(user);
+  console.log("added user with primary key",primaryKey)
+  let returnedUser = await db.user.get(1);
+
+  console.log("created user", returnedUser.id);
+  debugValue("with key", localVaultKey)
+  debugValue("with IV", returnedUser.localVaultIV);
   db.close();
   return [ returnedUser, localVaultKey ];
 }
@@ -71,43 +86,58 @@ export async function getUser() {
 }
 
 export async function loginUser(password) {
+  // change this logic. Don't login until password matches
+  console.log("opening database");
   await db.open();
-  await db.user.update(user.id, {loggedIn: true});
-  let user = await db.user.get(1);
 
+  console.log("getting user");
+  let user = await db.user.get(1);
+  db.close();
+
+  console.log("going to check hash");
+
+  // check password hash
+  let md = forge.md.sha256.create();
+  md.update(user.localVaultSalt)
+  md.update(password);
+  const hash = md.digest().toHex();
+  console.log("comparing hash",hash,"to",user.hash)
+  if (hash !== user.hash)
+    return false;
+
+  console.log("hash matches");
+
+  // get local vault key
   let localVaultKey = getLocalVaultKey(user.localVaultSalt, password);
 
+  console.log("got vault key");
 
   // decrypt the local vault and store it in global state
-  let localVault = decryptLocalVault(user.localVaultIV, localVaultKey);
-  $actions.setLocalVault(localVault);
-  
-  // TBD: decrypt the remote vault
-  db.close();
-}
-
-export async function loginUserWithKey(key) {
-  await db.open();
-  await db.user.update(user.id, {loggedIn: true});
-  let user = await db.user.get(1);
-
-  let localVaultKey = key;
-
-  // decrypt the local vault and store it in global state
-  let localVault = decryptLocalVault(user.localVaultIV, localVaultKey);
+  let localVault = await decryptLocalVault(user.localVaultIV, localVaultKey);
+  console.log("decrypted local vault");
   store.setLocalVault(localVault);
+
+  console.log("decrypted and set vault")
   
   // TBD: decrypt the remote vault
+
+  console.log("updating user to be logged in");
+  await db.open();
+  await db.user.update(1, {loggedIn: true});
   db.close();
+
+
+  return true;
 }
+
 
 export async function logoutUser() {
   await db.open();
   await db.user.update(1, {loggedIn: false});
+  db.close();
 
   // remove the decrypted vaults
   store.clearAll()
-  db.close();
 }
 
 export async function isLoggedIn() {
@@ -149,15 +179,15 @@ export async function checkForRegisteredUser() {
 
 /********* Local Vault ********/
 
-export async function generateLocalVaultKey(password) {
+export function generateLocalVaultKey(password) {
   const numIterations = 5000;
   let localVaultSalt = forge.random.getBytesSync(128);
-  let localVaultIV = forge.random.getBytesSync(16);
+  let localVaultIV = forge.random.getBytesSync(12);
   let localVaultKey = forge.pkcs5.pbkdf2(password, localVaultSalt, numIterations, 16);
   return [ localVaultSalt, localVaultIV, localVaultKey ];
 }
 
-export async function getLocalVaultKey(salt, password) {
+export function getLocalVaultKey(salt, password) {
   const numIterations = 5000;
   let localVaultKey = forge.pkcs5.pbkdf2(password, salt, numIterations, 16);
   return localVaultKey;
@@ -189,21 +219,72 @@ export async function createLocalVault(
     authCertificate: authCertificate,
   };
 
-  let cipher = forge.cipher.createCipher('AES-GCM', localVaultKey);
-  cipher.start({iv: localVaultIV});
-  cipher.update(forge.util.createBuffer(vault, 'raw'));
-  cipher.finish();
+  let vaultString = encodeVault(vault);
 
-  const encryptedVault = {
-    localVault: cipher.output
+  debugValue("creating vault with key", localVaultKey);
+  debugValue("and IV",localVaultIV);
+
+  let cipher = forge.cipher.createCipher('AES-GCM', localVaultKey);
+  console.log("setting IV");
+  cipher.start({iv: localVaultIV});
+  cipher.update(forge.util.createBuffer(vaultString));
+  const success = cipher.finish();
+  if (!success) {
+    return null;
   }
 
-  await db.localVault.add(encryptedVault);
+  const localVault = {
+    vault: cipher.output.toHex(),
+    tag: cipher.mode.tag.toHex()
+  }
+
+  console.log("OK, did it");
+  /* debugValue("vault encrypted as", cipher.output.toHex());
+  debugValue("with tag", cipher.mode.tag.toHex());
+
+  debugValue("vault encrypted as", cipher.output);
+  debugValue("with tag", cipher.mode.tag);
+
+  /// DZ check decryption of vault right here
+  // decrypt the vault
+  let decipher = forge.cipher.createDecipher('AES-GCM', localVaultKey);
+  console.log("setting IV");
+  decipher.start({iv: localVaultIV, tag: cipher.mode.tag});
+  console.log("updating with encrypted vault");
+  decipher.update(cipher.output);
+  console.log("finishing");
+  decipher.finish();
+
+ */
+
+  console.log("Encypted vault is",localVault.vault);
+  console.log("with tag",localVault.tag);
+
+  await db.localVault.add(localVault);
   db.close();
 
   // put the vault into the store
   store.setLocalVault(cipher.output);
 
+}
+
+function debugValue(label, value) {
+  const printableValue = new Buffer.from(value).toString('hex');
+  console.log(label, printableValue);
+}
+
+function encodeVault(vault) {
+  vault.remoteVaultIV = forge.util.encode64(vault.remoteVaultIV);
+  vault.remoteVaultKey = forge.util.encode64(vault.remoteVaultKey);
+  const vaultString = JSON.stringify(vault);
+  return vaultString;
+}
+
+function decodeVault(vaultString) {
+  let vault = JSON.parse(vaultString);
+  vault.remoteVaultIV = forge.util.decode64(vault.remoteVaultIV);
+  vault.remoteVaultKey = forge.util.decode64(vault.remoteVaultKey);
+  return vault;
 }
 
 export async function decryptLocalVault(
@@ -213,14 +294,32 @@ export async function decryptLocalVault(
 
   // get the encrypted vault
   await db.open();
-  let encryptedVault = await db.localVault.get(1);
+  let localVault = await db.localVault.get(1);
   db.close();
 
-  // decrypt the vault
-  let decipher = forge.cipher.createDecipher('AES-CBC', localVaultKey);
-  decipher.start({iv: localVaultIV});
-  decipher.update(encryptedVault.localVault);
+  debugValue("decrypting vault with key",localVaultKey);
+  debugValue("and IV", localVaultIV);
 
-  let localVault = decipher.finish();
-  return localVault
+  console.log("vault to decrypt is",localVault.vault);
+  console.log("with tag", localVault.tag);
+
+  const vault = forge.util.createBuffer(forge.util.hexToBytes(localVault.vault), 'raw');
+  const tag = forge.util.createBuffer(forge.util.hexToBytes(localVault.tag), 'raw');
+
+  // decrypt the vault
+  let decipher = forge.cipher.createDecipher('AES-GCM', localVaultKey);
+  console.log("setting IV");
+  decipher.start({iv: localVaultIV, tag: tag});
+  console.log("updating with encrypted vault");
+  decipher.update(vault);
+  console.log("finishing");
+  const success = decipher.finish();
+  if (!success) {
+    return null
+  }
+  console.log("put it back");
+
+  let returnedVault = decodeVault(decipher.output);
+
+  return returnedVault
 }

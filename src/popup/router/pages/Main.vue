@@ -121,6 +121,9 @@ export default {
     AccountDetails,
     Settings
   },
+  async beforeCreate() {
+    
+  },
 
   async created() {
     //fetch authenticate value (whether or not user is trying to use 1Key to authenticate with a website) from local storage
@@ -135,7 +138,7 @@ export default {
      */
     logoutLetsAuthUser() {
       logoutUser();
-      this.$router.push("/");
+      this.$router.push("/login");
     },
     /**
      * Changes component displayed based on a menu bar selection.
@@ -184,8 +187,8 @@ export default {
 }
 
 .selectedMenuItem {
-  background: white;
-  color: #000;
+  background: var(--blue);
+  color: white;
 }
 
 .footer {

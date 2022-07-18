@@ -230,7 +230,11 @@ export default {
       this.remoteVaultIV = forge.random.getBytesSync(16);
       this.remoteVaultKey = forge.random.getBytesSync(16);
 
-      console.log("generated keys")
+      console.log("generated keys");
+      const printableIV = new Buffer.from(user.localVaultIV).toString('hex');
+
+
+      console.log("using localVaultIV",printableIV)
 
       // create local vault
       await createLocalVault(user.localVaultIV, localVaultKey, this.remoteVaultIV, this.remoteVaultKey, this.authKeyPair, response.data.certificate)
@@ -343,48 +347,6 @@ export default {
   font-weight: bold;
   margin-bottom: 10px;
   margin-top: 0px;
-}
-
-.form-and-button {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-}
-
-form {
-  font-size: 14px;
-  margin: 10px 0px;
-}
-
-label {
-  font-size: 16px;
-  font-weight: bold;
-}
-
-input {
-  margin-top: 2px;
-  width: 250px;
-  height: 15px;
-}
-
-.field {
-  padding: 5px;
-}
-
-form .fail {
-  text-align: center;
-}
-
-.fail {
-  color: #b22222;
-  padding: 2px;
-}
-
-.specs {
-  color: var(--logo-gray);
-  padding: 2px;
 }
 
 .note {

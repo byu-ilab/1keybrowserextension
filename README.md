@@ -8,6 +8,14 @@ Part of the Let's Authenticate system.
 We are working on getting the browser extension compliant with version 3 of the Let's Authenticate protocol. The following are working:
 
 - creating an account with the CA
+- login with local password, logout
+- route guards so that user is directed to correct page when loading the extension
+- hopefully got encrypted vaults working. Need to see if the keypair or cert is good, for example
+
+- TBD check other pages for route guards
+- TBD reset if forget password
+- TBD renewing auth certificate
+- login to websites and remote vault
 
 ## Development
 
